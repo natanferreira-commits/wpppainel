@@ -1,0 +1,202 @@
+// Schema Prisma — Painel Dupla
+// SQLite no dev (zero config). Migra pra PostgreSQL em prod.
+// Nota: SQLite não tem enums nativos, então usamos String com validação
+// no nível da aplicação (class-validator). No Postgres, podemos trocar
+// pra enum nativo depois.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ─── User ─────────────────────────────────────────────────────────────────
+// 3 perfis: ADMIN, OPERATOR, VIEWER (RN-RF-04 do PRD)
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  passwordHash String? // null em dev — auth fake aceita qualquer senha
+  role         String   @default("OPERATOR") // ADMIN | OPERATOR | VIEWER
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  messages Message[]
+}
+
+// ─── Instance ─────────────────────────────────────────────────────────────
+// Cada Instance é um chip/número WhatsApp conectado via Z-API.
+// status: PENDING_QR | CONNECTED | DISCONNECTED
+
+model Instance {
+  id              String    @id @default(cuid())
+  name            String // "Mateus Caumo Tips"
+  phoneNumber     String? // "+55 11 9XXXX-1234"
+  zapiInstanceId  String?   @unique // ID na Z-API
+  zapiToken       String?
+  status          String    @default("PENDING_QR")
+  lastConnectedAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  communities Community[]
+  groups      Group[]
+  messages    Message[]
+}
+
+// ─── Community ────────────────────────────────────────────────────────────
+// Comunidade WhatsApp (estrutura que agrupa canal de anúncios + grupos).
+// IMPORTANTE: Comunidade ≠ Grupo. Comunidade tem 1 canal de anúncios + N grupos.
+
+model Community {
+  id           String   @id @default(cuid())
+  instanceId   String
+  whatsappId   String // ID da comunidade no WA
+  name         String // "Caumo Free"
+  membersCount Int?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  instance     Instance          @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  groups       Group[]
+  messages     Message[]
+  metrics      CommunityMetric[]
+  memberEvents MemberEvent[]
+
+  @@unique([instanceId, whatsappId])
+}
+
+// ─── Group ────────────────────────────────────────────────────────────────
+// Pode ser canal de anúncios da comunidade (isAnnouncementChannel=true)
+// ou grupo comum dentro/fora da comunidade.
+
+model Group {
+  id                    String   @id @default(cuid())
+  instanceId            String
+  communityId           String? // null se grupo isolado (não da comunidade)
+  whatsappId            String // ID do grupo no WA
+  name                  String
+  isAnnouncementChannel Boolean  @default(false)
+  membersCount          Int?
+  cachedAt              DateTime @default(now()) // pra cache de 30min (RF-06)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  instance       Instance        @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  community      Community?      @relation(fields: [communityId], references: [id], onDelete: SetNull)
+  messageTargets MessageTarget[]
+  memberEvents   MemberEvent[]
+
+  @@unique([instanceId, whatsappId])
+}
+
+// ─── Message ──────────────────────────────────────────────────────────────
+// Estados (importante pra idempotência):
+//   SCHEDULED → SENDING → SENT
+//                       ↘ FAILED (após retries)
+//                  CANCELLED (operador cancela antes do envio)
+//
+// destinationType:
+//   ANNOUNCEMENT_CHANNEL: vai pro canal de anúncios da communityId
+//   GROUP:                vai pra 1 grupo (em targets, 1 linha)
+//   MULTI_GROUP:          vai pra N grupos (em targets, N linhas)
+
+model Message {
+  id              String  @id @default(cuid())
+  instanceId      String
+  communityId     String? // se ANNOUNCEMENT_CHANNEL
+  destinationType String // ANNOUNCEMENT_CHANNEL | GROUP | MULTI_GROUP
+
+  content  String // texto markdown WhatsApp
+  imageUrl String?
+
+  scheduledFor DateTime // quando deve ser enviada (now = imediato)
+  status       String   @default("SCHEDULED") // SCHEDULED | SENDING | SENT | FAILED | CANCELLED
+
+  // Idempotência (CAS pattern):
+  // worker faz UPDATE WHERE status='SCHEDULED' SET status='SENDING', idempotencyKey=...
+  // se 0 linhas afetadas, outro worker pegou. Funciona em SQLite e Postgres.
+  idempotencyKey String?   @unique
+  zapiMessageId  String?
+  sentAt         DateTime?
+  attemptCount   Int       @default(0)
+  lastError      String?
+
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  instance     Instance        @relation(fields: [instanceId], references: [id], onDelete: Restrict)
+  community    Community?      @relation(fields: [communityId], references: [id], onDelete: SetNull)
+  createdBy    User            @relation(fields: [createdById], references: [id])
+  targets      MessageTarget[]
+  memberEvents MemberEvent[]
+
+  @@index([status, scheduledFor])
+}
+
+// ─── MessageTarget ────────────────────────────────────────────────────────
+// Quando a Message vai pra múltiplos grupos, cada destino tem seu status
+// próprio (pode ter sucesso em uns e falhar em outros).
+
+model MessageTarget {
+  id            String    @id @default(cuid())
+  messageId     String
+  groupId       String
+  status        String    @default("SCHEDULED") // mesmo enum de Message
+  zapiMessageId String?
+  sentAt        DateTime?
+  lastError     String?
+  attemptCount  Int       @default(0)
+
+  message Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  group   Group   @relation(fields: [groupId], references: [id])
+
+  @@unique([messageId, groupId])
+}
+
+// ─── CommunityMetric ──────────────────────────────────────────────────────
+// Snapshot diário do membersCount da comunidade. Cron 1x/dia popula isso
+// chamando Z-API. Diff entre dias = crescimento líquido.
+
+model CommunityMetric {
+  id           String   @id @default(cuid())
+  communityId  String
+  date         DateTime // truncar pra dia (00:00 UTC)
+  membersCount Int
+  channelViews Int? // views do canal de anúncios (se Z-API expõe)
+  createdAt    DateTime @default(now())
+
+  community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  @@unique([communityId, date])
+  @@index([communityId, date])
+}
+
+// ─── MemberEvent ──────────────────────────────────────────────────────────
+// Eventos JOIN/LEFT capturados via webhook Z-API. messageId aponta pra
+// última mensagem SENT antes do evento — pra correlacionar saídas com
+// "tip queimadora". Phone armazenado como hash pra LGPD.
+
+model MemberEvent {
+  id          String   @id @default(cuid())
+  communityId String
+  groupId     String? // null se evento foi no canal de anúncios
+  type        String // JOIN | LEFT
+  phoneHash   String // hash do número (não armazenamos cru)
+  messageId   String? // última msg SENT antes desse evento
+  occurredAt  DateTime
+  createdAt   DateTime @default(now())
+
+  community Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+  group     Group?    @relation(fields: [groupId], references: [id])
+  message   Message?  @relation(fields: [messageId], references: [id])
+
+  @@index([communityId, occurredAt])
+  @@index([messageId])
+}
