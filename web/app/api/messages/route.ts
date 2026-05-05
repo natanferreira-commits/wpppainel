@@ -3,6 +3,8 @@ import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { errorResponse, fromZodError, notFound } from '../_helpers/errors';
 
+export const dynamic = 'force-dynamic';
+
 // POST /api/messages — cria mensagem (imediata ou agendada)
 // GET  /api/messages — lista com filtros opcionais
 

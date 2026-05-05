@@ -1,15 +1,14 @@
 // Schema Prisma — Painel Dupla
-// SQLite no dev (zero config). Migra pra PostgreSQL em prod.
-// Nota: SQLite não tem enums nativos, então usamos String com validação
-// no nível da aplicação (class-validator). No Postgres, podemos trocar
-// pra enum nativo depois.
+// PostgreSQL em prod (Vercel Postgres / Neon).
+// Enums modelados como String (validação em runtime via Zod).
+// Pra dev local: criar Postgres free no neon.tech e setar DATABASE_URL.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 

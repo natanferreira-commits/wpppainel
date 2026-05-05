@@ -4,6 +4,8 @@ import { prisma } from '@/lib/prisma';
 import { signToken } from '@/lib/jwt';
 import { fromZodError } from '../../_helpers/errors';
 
+export const dynamic = 'force-dynamic';
+
 // POST /api/auth/login
 // Auth fake: aceita qualquer email + senha em dev.
 // Cria user OPERATOR se não existe e retorna JWT.

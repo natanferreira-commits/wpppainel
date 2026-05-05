@@ -12,7 +12,6 @@ out/
 # Prisma
 **/dev.db
 **/dev.db-journal
-web/prisma/migrations/
 
 # Build artifacts
 *.tsbuildinfo

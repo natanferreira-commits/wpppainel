@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { notFound } from '../../../_helpers/errors';
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/instances/[id]/groups
 // Lista os grupos de uma instância (canal de anúncios primeiro).
 

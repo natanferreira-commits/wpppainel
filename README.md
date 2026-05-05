@@ -5,45 +5,69 @@ Painel interno do Grupo Dupla pra envio e agendamento de mensagens em comunidade
 ## Stack
 
 - **App:** Next.js 14 (App Router) — UI + Route Handlers
-- **Banco:** Prisma + SQLite (dev) / PostgreSQL (prod)
+- **Banco:** Prisma + PostgreSQL (Vercel Postgres em prod / Neon em dev)
 - **Auth:** JWT via `jose` (edge-compatible)
 - **Validação:** Zod
 - **UI:** Tailwind CSS + lucide-react
-- **WhatsApp:** Z-API (mockada por enquanto)
-- **Deploy alvo:** Vercel (1 deploy só) + Supabase ou Neon (Postgres)
+- **WhatsApp:** Z-API (integração no Round 2)
+- **Deploy:** Vercel (1 deploy só)
 
-## Como rodar (primeira vez)
+## Deploy no Vercel (passo a passo)
 
+1. **Importar o repo no Vercel** — Add New Project → seleciona `wpppainel`
+2. **Root Directory:** `web` ⚠️ obrigatório
+3. **Framework:** Next.js (auto-detectado)
+4. **Storage → Create Database → Postgres** (Vercel Postgres):
+   - Nome: `painel-dupla-db`
+   - Região: `gru1` (São Paulo)
+   - Vercel injeta `DATABASE_URL` automaticamente nas env vars
+5. **Settings → Environment Variables → Add:**
+   ```
+   JWT_SECRET = (gere com: node -e "console.log(require('crypto').randomBytes(48).toString('base64url'))")
+   SEED_TOKEN = (gere com: node -e "console.log(require('crypto').randomBytes(24).toString('base64url'))")
+   ```
+6. **Deploy** (build roda `prisma db push` automaticamente — cria tabelas)
+7. **Popular dados de demo** (1 vez só):
+   ```
+   https://SEU-PROJETO.vercel.app/api/admin/seed?token=SEED_TOKEN
+   ```
+8. Acesse o painel → login com qualquer email (modo dev — Round 3 vira auth real)
+
+## Como rodar dev local
+
+Como o schema agora é PostgreSQL, você precisa de um Postgres acessível:
+
+**Opção A — Neon (recomendado, free):**
+1. Cria conta em [neon.tech](https://neon.tech) → New Project
+2. Copia a connection string
+3. Cria `web/.env`:
+   ```
+   DATABASE_URL="postgresql://user:pass@host/db?sslmode=require"
+   JWT_SECRET="qualquer-coisa-pra-dev"
+   SEED_TOKEN="qualquer-coisa-pra-dev"
+   ```
+4. `npm install`
+5. `cd web && npm run db:push && npm run db:seed`
+6. `cd .. && npm run dev` → http://localhost:3011
+
+**Opção B — Postgres local via Docker:**
 ```bash
-# 1. Instalar deps
-npm install
-
-# 2. Configurar banco (SQLite — cria arquivo local)
-cd web
-cp .env.example .env
-npm run db:push     # cria tabelas
-npm run db:seed     # popula dados de teste
-
-# 3. Subir a app (porta 3011)
-cd ..
-npm run dev
+docker run -d --name painel-pg -e POSTGRES_PASSWORD=dev -p 5432:5432 postgres:16
+# DATABASE_URL=postgresql://postgres:dev@localhost:5432/postgres
 ```
-
-Abrir `http://localhost:3011`. Login com qualquer email (dev mode aceita).
 
 ## Estrutura
 
 ```
 painel-dupla/
-├── package.json              # workspace root (apenas web/ ativo)
-└── web/                      # tudo aqui
-    ├── package.json
+├── package.json              # workspace root (web/ ativo)
+└── web/
     ├── prisma/
-    │   ├── schema.prisma     # User, Instance, Community, Group, Message,
-    │   │                     # MessageTarget, CommunityMetric, MemberEvent
-    │   └── seed.ts           # popula 30d de métricas + eventos fake
+    │   ├── schema.prisma     # postgresql
+    │   └── seed.ts           # CLI wrapper (chama lib/seed.ts)
     ├── app/
-    │   ├── api/              # Route Handlers (substituem o NestJS)
+    │   ├── api/              # Route Handlers
+    │   │   ├── admin/seed/         # ⭐ popula DB em prod (token-protected)
     │   │   ├── auth/login/
     │   │   ├── instances/[id]/groups/
     │   │   ├── messages/[id]/
@@ -53,44 +77,33 @@ painel-dupla/
     │       ├── nova-mensagem/   # ⭐ tela principal
     │       ├── calendario/
     │       ├── historico/
-    │       ├── insights/        # churn por mensagem + crescimento
+    │       ├── insights/        # churn por mensagem
     │       └── instancias/
     ├── components/
     │   ├── sidebar.tsx
-    │   └── whatsapp-preview.tsx  # mock fiel da bolha do WA
+    │   └── whatsapp-preview.tsx
     └── lib/
         ├── prisma.ts            # singleton (reuse em Lambda)
         ├── jwt.ts               # sign/verify com jose
+        ├── seed.ts              # função reusable (CLI + endpoint)
         └── api.ts               # cliente HTTP tipado
 ```
 
-## Variáveis de ambiente
+## Variáveis de ambiente em prod
 
-Em `web/.env`:
-
-```
-DATABASE_URL="file:./prisma/dev.db"      # SQLite local; prod = postgres://...
-JWT_SECRET="dev-secret-change-in-prod"   # gere algo forte em prod
-ZAPI_BASE_URL="https://api.z-api.io"
-ZAPI_INSTANCE_ID=""                       # Luccas vai fornecer
-ZAPI_TOKEN=""                             # Luccas vai fornecer
-ZAPI_CLIENT_TOKEN=""                      # Luccas vai fornecer
-```
-
-## Deploy no Vercel
-
-1. Conectar repo no Vercel
-2. **Root Directory:** `web`
-3. **Framework:** Next.js (auto-detectado)
-4. Variáveis de ambiente: copiar de `.env.example` e preencher prod
-5. **DATABASE_URL** aponta pra Postgres (Supabase/Neon)
-6. Build command padrão (`npm run build`) — `postinstall` roda `prisma generate`
+| Var | Origem | Obrigatória |
+|---|---|---|
+| `DATABASE_URL` | Vercel Postgres injeta | ✅ |
+| `JWT_SECRET` | gerada manualmente | ✅ |
+| `SEED_TOKEN` | gerada manualmente | ✅ |
+| `ZAPI_*` | Luccas (Round 2) | ⚪ ainda não |
 
 ## Status
 
 - [x] Round 1: scaffold + tela Nova Mensagem ponta-a-ponta
-- [x] Insights: métricas de crescimento e churn por mensagem (dados fake)
-- [x] Refator pra Next.js Route Handlers (deploy Vercel-ready)
-- [ ] Round 2: Z-API real + worker (cron externo) + idempotência
+- [x] Insights: métricas de crescimento e churn por mensagem
+- [x] Refator pra Next.js Route Handlers
+- [x] Prisma migrado pra PostgreSQL
+- [ ] Deploy Vercel + DNS painel.grupodupla.com.br
+- [ ] Round 2: Z-API real + worker (cron-job.org) + integração encurtador
 - [ ] Round 3: auth real (bcrypt) + RBAC + UI de QR code
-- [ ] Round 4: deploy Vercel + DNS + smoke prod

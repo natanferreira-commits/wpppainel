@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { notFound } from '../../../_helpers/errors';
 
+export const dynamic = 'force-dynamic';
+
 // GET /api/communities/[id]/insights
 // Agregação de métricas: membros, crescimento 7d, churn estimado,
 // top mensagens "queimadoras" (mais saídas atribuídas) e série de 30d.
