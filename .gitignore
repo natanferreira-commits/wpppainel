@@ -10,9 +10,9 @@ out/
 .idea/
 
 # Prisma
-api/prisma/dev.db
-api/prisma/dev.db-journal
-api/prisma/migrations/dev.db*
+**/dev.db
+**/dev.db-journal
+web/prisma/migrations/
 
 # Build artifacts
 *.tsbuildinfo
