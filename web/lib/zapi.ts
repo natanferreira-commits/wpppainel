@@ -39,8 +39,18 @@ export class ZapiError extends Error {
 export type ZapiStatusResponse = {
   connected: boolean;
   smartphoneConnected?: boolean;
-  session?: string;
+  session?: string | boolean;
   needsConnection?: boolean;
+  error?: string;
+};
+
+export type ZapiDevice = {
+  phone: string; // ex: "552123425243"
+  name?: string; // ex: "Dupla Aposta"
+  imgUrl?: string | null;
+  about?: string | null;
+  isBusiness?: boolean;
+  device?: { sessionName?: string; device_model?: string };
 };
 
 export type ZapiGroup = {
@@ -130,6 +140,10 @@ export class ZapiClient {
 
   async disconnect(): Promise<{ value: boolean }> {
     return this.request<{ value: boolean }>('GET', '/disconnect');
+  }
+
+  async getDevice(): Promise<ZapiDevice> {
+    return this.request<ZapiDevice>('GET', '/device');
   }
 
   // ── Grupos / comunidades ──────────────────────────────────────────────

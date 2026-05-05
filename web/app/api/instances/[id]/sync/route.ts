@@ -47,13 +47,23 @@ export async function POST(_req: Request, ctx: { params: { id: string } }) {
     );
   }
 
-  // 2. Marca como conectada no nosso DB
+  // 2. Pega info do device (número/nome reais da conta WhatsApp conectada)
+  let device;
+  try {
+    device = await zapi.getDevice();
+  } catch {
+    // não fatal — segue sem atualizar nome/phone
+  }
+
+  // 3. Marca como conectada + atualiza nome/phone com dados reais da Z-API
   await prisma.instance.update({
     where: { id: instanceId },
     data: {
       status: 'CONNECTED',
       lastConnectedAt: new Date(),
       zapiInstanceId: process.env.ZAPI_INSTANCE_ID ?? null,
+      name: device?.name ?? instance.name,
+      phoneNumber: device?.phone ? formatPhoneBR(device.phone) : instance.phoneNumber,
     },
   });
 
@@ -137,9 +147,26 @@ export async function POST(_req: Request, ctx: { params: { id: string } }) {
     ok: true,
     instance: {
       status: 'CONNECTED',
+      name: device?.name ?? instance.name,
+      phone: device?.phone ? formatPhoneBR(device.phone) : null,
       session: status.session,
     },
     syncedGroups: synced.length,
     groups: synced,
   });
+}
+
+// Formata número internacional brasileiro vindo da Z-API.
+// Ex: "552123425243" → "+55 21 2342-5243"
+//     "5521988887777" → "+55 21 98888-7777"
+function formatPhoneBR(raw: string): string {
+  const digits = raw.replace(/\D/g, '');
+  if (digits.length < 12 || digits.length > 13) return `+${digits}`;
+  const country = digits.slice(0, 2);
+  const ddd = digits.slice(2, 4);
+  const rest = digits.slice(4);
+  if (rest.length === 9) {
+    return `+${country} ${ddd} ${rest.slice(0, 5)}-${rest.slice(5)}`;
+  }
+  return `+${country} ${ddd} ${rest.slice(0, 4)}-${rest.slice(4)}`;
 }
