@@ -26,6 +26,7 @@ export default function NovaMensagemPage() {
 
   // estado do formulário
   const [instanceId, setInstanceId] = useState<string>('');
+  const [communityId, setCommunityId] = useState<string>('');
   const [destinationType, setDestinationType] = useState<DestinationType>('ANNOUNCEMENT_CHANNEL');
   const [groupId, setGroupId] = useState<string>('');
   const [groupIds, setGroupIds] = useState<string[]>([]);
@@ -59,9 +60,24 @@ export default function NovaMensagemPage() {
   }, [instanceId]);
 
   const selectedInstance = instances.find((i) => i.id === instanceId);
-  const community = selectedInstance?.communities[0]; // MVP: 1 comunidade por instância
-  const announcementChannel = groups.find((g) => g.isAnnouncementChannel);
-  const regularGroups = groups.filter((g) => !g.isAnnouncementChannel);
+  const availableCommunities = selectedInstance?.communities ?? [];
+
+  // Quando carrega/muda instância, default na primeira comunidade
+  useEffect(() => {
+    if (availableCommunities.length === 0) {
+      setCommunityId('');
+      return;
+    }
+    if (!availableCommunities.find((c) => c.id === communityId)) {
+      setCommunityId(availableCommunities[0].id);
+    }
+  }, [availableCommunities, communityId]);
+
+  const community = availableCommunities.find((c) => c.id === communityId);
+  // Filtra grupos pela comunidade selecionada (canal de anúncios + grupos regulares)
+  const groupsOfCommunity = groups.filter((g) => g.community?.id === communityId);
+  const announcementChannel = groupsOfCommunity.find((g) => g.isAnnouncementChannel);
+  const regularGroups = groupsOfCommunity.filter((g) => !g.isAnnouncementChannel);
 
   // preview: derivar label e horário previstos
   const destinationLabel = useMemo(() => {
@@ -179,7 +195,28 @@ export default function NovaMensagemPage() {
           </Section>
 
           {/* ② Destino */}
-          <Section number="②" title="Para onde dentro da comunidade?">
+          <Section number="②" title="Para onde?">
+            {/* Seletor de comunidade — aparece se a instância tem 2+ */}
+            {availableCommunities.length > 1 && (
+              <div className="mb-3">
+                <label className="block text-xs font-medium text-slate-600 mb-1">
+                  Comunidade
+                </label>
+                <select
+                  value={communityId}
+                  onChange={(e) => setCommunityId(e.target.value)}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm bg-white"
+                >
+                  {availableCommunities.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                      {c.membersCount ? ` · ${c.membersCount.toLocaleString('pt-BR')} membros` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <div className="space-y-2">
               <RadioCard
                 checked={destinationType === 'ANNOUNCEMENT_CHANNEL'}
@@ -188,20 +225,31 @@ export default function NovaMensagemPage() {
                 subtitle={
                   community
                     ? `${community.name} · ${community.membersCount?.toLocaleString('pt-BR') ?? '?'} membros`
-                    : 'Comunidade não cadastrada'
+                    : 'Selecione uma comunidade primeiro'
                 }
+                disabled={!community}
               />
               <RadioCard
                 checked={destinationType === 'GROUP'}
                 onChange={() => setDestinationType('GROUP')}
                 title="💬 Grupo específico"
-                subtitle="Mensagem só pra um grupo"
+                subtitle={
+                  regularGroups.length === 0
+                    ? 'Sem grupos regulares (só canais de anúncios)'
+                    : 'Mensagem só pra um grupo'
+                }
+                disabled={regularGroups.length === 0}
               />
               <RadioCard
                 checked={destinationType === 'MULTI_GROUP'}
                 onChange={() => setDestinationType('MULTI_GROUP')}
                 title="💬 Vários grupos"
-                subtitle="Mesmo conteúdo em múltiplos grupos"
+                subtitle={
+                  regularGroups.length === 0
+                    ? 'Sem grupos regulares disponíveis'
+                    : 'Mesmo conteúdo em múltiplos grupos'
+                }
+                disabled={regularGroups.length === 0}
               />
             </div>
 
@@ -404,21 +452,25 @@ function RadioCard({
   title: string;
   subtitle: string;
   icon?: React.ReactNode;
+  disabled?: boolean;
 }) {
   return (
     <label
       className={cn(
-        'flex items-center gap-3 rounded-lg border px-3 py-2.5 cursor-pointer transition',
-        checked
-          ? 'border-emerald-500 bg-emerald-50'
-          : 'border-slate-200 hover:bg-slate-50',
+        'flex items-center gap-3 rounded-lg border px-3 py-2.5 transition',
+        disabled
+          ? 'border-slate-200 bg-slate-50 cursor-not-allowed opacity-60'
+          : checked
+            ? 'border-emerald-500 bg-emerald-50 cursor-pointer'
+            : 'border-slate-200 hover:bg-slate-50 cursor-pointer',
       )}
     >
       <input
         type="radio"
         checked={checked}
         onChange={onChange}
-        className="text-emerald-600"
+        disabled={disabled}
+        className="text-emerald-600 disabled:cursor-not-allowed"
       />
       {icon && <span className="text-slate-500">{icon}</span>}
       <div className="flex-1">
