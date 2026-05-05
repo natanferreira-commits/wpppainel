@@ -70,6 +70,19 @@ export type ZapiGroup = {
   about?: string;
 };
 
+export type ZapiGroupMetadata = {
+  phone: string;
+  name: string;
+  subject?: string;
+  description?: string;
+  owner?: string;
+  creation?: number;
+  invitationLink?: string;
+  communityId?: string;
+  isGroupAnnouncement?: boolean;
+  participants?: Array<{ phone: string; isAdmin?: boolean; isSuperAdmin?: boolean }>;
+};
+
 export type ZapiSendTextResponse = {
   messageId?: string;
   zaapId?: string;
@@ -158,14 +171,11 @@ export class ZapiClient {
     return this.request('GET', '/chats');
   }
 
-  async getGroupMetadata(groupId: string): Promise<{
-    phone: string;
-    name: string;
-    description?: string;
-    participantsCount?: number;
-    isAnnouncement?: boolean;
-  }> {
-    return this.request('GET', `/group-metadata/${encodeURIComponent(groupId)}`);
+  async getGroupMetadata(groupId: string): Promise<ZapiGroupMetadata> {
+    return this.request<ZapiGroupMetadata>(
+      'GET',
+      `/group-metadata/${encodeURIComponent(groupId)}`,
+    );
   }
 
   // ── Envio ────────────────────────────────────────────────────────────

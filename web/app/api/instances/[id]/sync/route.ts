@@ -94,6 +94,19 @@ export async function POST(_req: Request, ctx: { params: { id: string } }) {
       g.announcement === true ||
       /anúncio|announcement|broadcast/i.test(g.name);
 
+    // Pega contagem REAL de participantes via group-metadata (mais confiável
+    // que o /groups que pode não retornar count). Best-effort: se falhar,
+    // segue sem o count.
+    let realMembersCount: number | null = g.participantsCount ?? null;
+    try {
+      const meta = await zapi.getGroupMetadata(g.phone);
+      if (meta?.participants?.length) {
+        realMembersCount = meta.participants.length;
+      }
+    } catch {
+      // ignore — não fatal
+    }
+
     // Se a Z-API retornou communityId, garantir que a Community existe no DB
     let dbCommunityId: string | null = null;
     if (g.communityId) {
@@ -101,17 +114,38 @@ export async function POST(_req: Request, ctx: { params: { id: string } }) {
         where: {
           instanceId_whatsappId: { instanceId, whatsappId: g.communityId },
         },
-        update: {},
+        update: {
+          // Pra canal de anúncios, atualiza membersCount com o real
+          ...(isAnnouncement && realMembersCount !== null
+            ? { membersCount: realMembersCount }
+            : {}),
+        },
         create: {
           instanceId,
           whatsappId: g.communityId,
           // Pra canal de anúncios, o nome do grupo é praticamente o nome
           // da comunidade (ex: "✅ MATEUS CAUMO #1")
           name: isAnnouncement ? g.name : `Comunidade ${g.communityId.slice(-6)}`,
-          membersCount: g.participantsCount ?? null,
+          membersCount: realMembersCount,
         },
       });
       dbCommunityId = community.id;
+
+      // Pro canal de anúncios, cria/atualiza snapshot de hoje no
+      // CommunityMetric (alimenta o gráfico de Insights)
+      if (isAnnouncement && realMembersCount !== null) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        await prisma.communityMetric.upsert({
+          where: { communityId_date: { communityId: community.id, date: today } },
+          update: { membersCount: realMembersCount },
+          create: {
+            communityId: community.id,
+            date: today,
+            membersCount: realMembersCount,
+          },
+        });
+      }
     }
 
     const group = await prisma.group.upsert({
@@ -120,7 +154,7 @@ export async function POST(_req: Request, ctx: { params: { id: string } }) {
       },
       update: {
         name: g.name,
-        membersCount: g.participantsCount ?? null,
+        membersCount: realMembersCount,
         isAnnouncementChannel: isAnnouncement,
         communityId: dbCommunityId,
         cachedAt: new Date(),
@@ -130,7 +164,7 @@ export async function POST(_req: Request, ctx: { params: { id: string } }) {
         communityId: dbCommunityId,
         whatsappId: g.phone,
         name: g.name,
-        membersCount: g.participantsCount ?? null,
+        membersCount: realMembersCount,
         isAnnouncementChannel: isAnnouncement,
       },
     });
