@@ -72,9 +72,18 @@ export type Group = {
   community: { id: string; name: string } | null;
 };
 
+export type SyncResult = {
+  ok: boolean;
+  instance: { status: string; session?: string };
+  syncedGroups: number;
+  groups: Array<{ id: string; name: string; isAnnouncement: boolean }>;
+};
+
 export const instances = {
   list: () => request<Instance[]>('/instances'),
   groups: (instanceId: string) => request<Group[]>(`/instances/${instanceId}/groups`),
+  sync: (instanceId: string) =>
+    request<SyncResult>(`/instances/${instanceId}/sync`, { method: 'POST' }),
 };
 
 // ─── Messages ───

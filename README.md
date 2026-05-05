@@ -96,14 +96,53 @@ painel-dupla/
 | `DATABASE_URL` | Vercel Postgres injeta | ✅ |
 | `JWT_SECRET` | gerada manualmente | ✅ |
 | `SEED_TOKEN` | gerada manualmente | ✅ |
-| `ZAPI_*` | Luccas (Round 2) | ⚪ ainda não |
+| `CRON_TOKEN` | gerada manualmente | ✅ pra worker |
+| `ZAPI_INSTANCE_ID` | Z-API painel | ✅ pra envio real |
+| `ZAPI_TOKEN` | Z-API painel | ✅ pra envio real |
+| `ZAPI_CLIENT_TOKEN` | Z-API painel (Account Token) | ✅ pra envio real |
+
+## Worker de envio (cron externo)
+
+O painel processa mensagens agendadas via endpoint `/api/cron/tick` chamado
+externamente. Recomendado: [cron-job.org](https://cron-job.org) (free, 1min granularity).
+
+**Setup:**
+
+1. Sign up em cron-job.org com email
+2. Cronjobs → Create cronjob:
+   - **Title:** Painel Dupla — tick
+   - **URL:** `https://SEU-DOMINIO.vercel.app/api/cron/tick?token=CRON_TOKEN`
+   - **Schedule:** Every 1 minute (`* * * * *`)
+   - **Notifications:** Failure (opcional)
+3. Salvar e ativar
+
+O endpoint:
+- Pega até 10 mensagens `SCHEDULED` com `scheduledFor <= now`
+- Marca como `SENDING` (CAS pattern — evita 2 workers pegarem a mesma)
+- Chama Z-API para enviar (texto ou imagem)
+- Atualiza status `SENT` ou retenta (até 3x) antes de marcar `FAILED`
+
+## Webhook Z-API
+
+URL pra configurar no painel da Z-API:
+```
+https://SEU-DOMINIO.vercel.app/api/webhooks/zapi
+```
+
+Eventos relevantes a habilitar:
+- ✅ `On Message Status` (delivered/read)
+- ✅ `On Disconnect / Connect`
+- ✅ `On Receive` (capta entrada/saída de membros via group notifications)
 
 ## Status
 
 - [x] Round 1: scaffold + tela Nova Mensagem ponta-a-ponta
-- [x] Insights: métricas de crescimento e churn por mensagem
+- [x] Insights: métricas de crescimento e churn por mensagem (dados fake)
 - [x] Refator pra Next.js Route Handlers
 - [x] Prisma migrado pra PostgreSQL
-- [ ] Deploy Vercel + DNS painel.grupodupla.com.br
-- [ ] Round 2: Z-API real + worker (cron-job.org) + integração encurtador
+- [x] Deploy Vercel + Neon Postgres
+- [x] Integração Z-API: client + sync de grupos + worker + webhook
+- [ ] Smoke test com Z-API real (depende do Client-Token)
+- [ ] DNS painel.grupodupla.com.br
+- [ ] Round 2.5: integração com encurtador comunidade.mateuscaumo.com.br
 - [ ] Round 3: auth real (bcrypt) + RBAC + UI de QR code
