@@ -23,6 +23,9 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getToken();
   const res = await fetch(`${BASE}${path}`, {
     ...init,
+    // Força sem cache — caso contrário browser/Vercel CDN podem mostrar
+    // dados antigos depois de mutações (ex: ver grupos que já foram apagados).
+    cache: 'no-store',
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
