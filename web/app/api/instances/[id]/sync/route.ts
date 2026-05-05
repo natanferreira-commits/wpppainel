@@ -57,7 +57,7 @@ export async function POST(_req: Request, ctx: { params: { id: string } }) {
     },
   });
 
-  // 3. Lista grupos
+  // 3. Lista grupos (paginação com pageSize 100 cobre nosso caso)
   let groups;
   try {
     groups = await zapi.getGroups();
@@ -68,13 +68,41 @@ export async function POST(_req: Request, ctx: { params: { id: string } }) {
     throw err;
   }
 
-  // 4. Upsert cada grupo. Detecta canal de anúncios pelo flag ou nome.
-  const synced: Array<{ id: string; name: string; isAnnouncement: boolean }> = [];
+  // 4. Pra cada grupo: cria/atualiza Community se vier communityId, e
+  // upsert do Group ligado a ela. Detecta canal de anúncios pelo flag.
+  const synced: Array<{
+    id: string;
+    name: string;
+    isAnnouncement: boolean;
+    communityId: string | null;
+  }> = [];
+
   for (const g of groups) {
     const isAnnouncement =
+      g.isGroupAnnouncement === true ||
       g.isAnnouncement === true ||
       g.announcement === true ||
       /anúncio|announcement|broadcast/i.test(g.name);
+
+    // Se a Z-API retornou communityId, garantir que a Community existe no DB
+    let dbCommunityId: string | null = null;
+    if (g.communityId) {
+      const community = await prisma.community.upsert({
+        where: {
+          instanceId_whatsappId: { instanceId, whatsappId: g.communityId },
+        },
+        update: {},
+        create: {
+          instanceId,
+          whatsappId: g.communityId,
+          // Pra canal de anúncios, o nome do grupo é praticamente o nome
+          // da comunidade (ex: "✅ MATEUS CAUMO #1")
+          name: isAnnouncement ? g.name : `Comunidade ${g.communityId.slice(-6)}`,
+          membersCount: g.participantsCount ?? null,
+        },
+      });
+      dbCommunityId = community.id;
+    }
 
     const group = await prisma.group.upsert({
       where: {
@@ -84,10 +112,12 @@ export async function POST(_req: Request, ctx: { params: { id: string } }) {
         name: g.name,
         membersCount: g.participantsCount ?? null,
         isAnnouncementChannel: isAnnouncement,
+        communityId: dbCommunityId,
         cachedAt: new Date(),
       },
       create: {
         instanceId,
+        communityId: dbCommunityId,
         whatsappId: g.phone,
         name: g.name,
         membersCount: g.participantsCount ?? null,
@@ -95,7 +125,12 @@ export async function POST(_req: Request, ctx: { params: { id: string } }) {
       },
     });
 
-    synced.push({ id: group.id, name: group.name, isAnnouncement });
+    synced.push({
+      id: group.id,
+      name: group.name,
+      isAnnouncement,
+      communityId: dbCommunityId,
+    });
   }
 
   return NextResponse.json({

@@ -44,14 +44,20 @@ export type ZapiStatusResponse = {
 };
 
 export type ZapiGroup = {
-  phone: string; // ID do grupo (formato 120363xxxx@g.us)
+  phone: string; // ID do grupo (formato "120363xxx-group" ou "120363xxx@g.us")
   name: string;
-  isGroup: true;
-  // Variações entre versões da Z-API:
-  isAnnouncement?: boolean; // canal de anúncios
-  announcement?: boolean; // alias
+  // Flag real retornada pelo /groups da Z-API:
+  isGroupAnnouncement?: boolean; // canal de anúncios da comunidade
+  // Comunidade WhatsApp à qual o grupo/canal pertence:
+  communityId?: string;
+  // Aliases vistos em outras versões:
+  isAnnouncement?: boolean;
+  announcement?: boolean;
   participantsCount?: number;
-  community?: { id: string; name: string };
+  // Outros campos úteis:
+  pinned?: string;
+  archived?: string;
+  about?: string;
 };
 
 export type ZapiSendTextResponse = {
@@ -128,10 +134,10 @@ export class ZapiClient {
 
   // ── Grupos / comunidades ──────────────────────────────────────────────
 
-  async getGroups(): Promise<ZapiGroup[]> {
-    // Endpoint principal pra listar grupos.
-    // Variação: algumas contas expõem em /groups, outras só via /chats com filter.
-    return this.request<ZapiGroup[]>('GET', '/groups');
+  async getGroups(pageSize = 100): Promise<ZapiGroup[]> {
+    // Z-API pagina /groups. pageSize=100 cobre a maioria dos casos
+    // (instâncias que não estão em centenas de grupos).
+    return this.request<ZapiGroup[]>('GET', `/groups?page=1&pageSize=${pageSize}`);
   }
 
   async getChats(): Promise<Array<{ phone: string; name: string; isGroup: boolean }>> {
