@@ -137,6 +137,19 @@ export const messages = {
     const qs = q.toString();
     return request<Message[]>(`/messages${qs ? `?${qs}` : ''}`);
   },
+  cancel: (id: string) =>
+    request<Message>(`/messages/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ status: 'CANCELLED' }),
+    }),
+  update: (
+    id: string,
+    input: { content?: string; scheduledFor?: string },
+  ) =>
+    request<Message>(`/messages/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(input),
+    }),
 };
 
 // ─── Insights ───
