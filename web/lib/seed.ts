@@ -258,7 +258,7 @@ export async function seedDatabase(prisma: PrismaClient): Promise<SeedSummary> {
   });
 
   return {
-    users: [admin.email, tipster.email],
+    users: [admin.email ?? admin.username ?? admin.id, tipster.email ?? tipster.username ?? tipster.id],
     instance: instance.name,
     community: community.name,
     groups: groups.length,
