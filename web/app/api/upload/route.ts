@@ -59,9 +59,13 @@ export async function POST(req: NextRequest) {
   const filename = `messages/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
   try {
+    // Compatível com Blob stores private E public:
+    //   - Store public:  blob.url é URL aberta
+    //   - Store private: blob.url é URL com token (Z-API consegue baixar)
     const blob = await put(filename, file, {
       access: 'public',
       addRandomSuffix: false,
+      allowOverwrite: true,
     });
     return NextResponse.json({
       url: blob.url,
@@ -70,10 +74,33 @@ export async function POST(req: NextRequest) {
       type: file.type,
     });
   } catch (err) {
+    // Se o store é privado e a SDK reclama de access:'public',
+    // tenta de novo SEM o access (cria blob com modo do store)
+    if (
+      err instanceof Error &&
+      /Cannot use public access on a private store/i.test(err.message)
+    ) {
+      try {
+        const blob = await put(filename, file, {
+          addRandomSuffix: false,
+          allowOverwrite: true,
+        } as any);
+        return NextResponse.json({
+          url: blob.url,
+          filename,
+          size: file.size,
+          type: file.type,
+        });
+      } catch (err2) {
+        return NextResponse.json(
+          { message: err2 instanceof Error ? err2.message : 'Upload falhou (private store)' },
+          { status: 500 },
+        );
+      }
+    }
+
     return NextResponse.json(
-      {
-        message: err instanceof Error ? err.message : 'Erro ao fazer upload',
-      },
+      { message: err instanceof Error ? err.message : 'Erro ao fazer upload' },
       { status: 500 },
     );
   }
