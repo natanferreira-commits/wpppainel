@@ -9,7 +9,6 @@ import {
   Clock,
   History,
   Smartphone,
-  Users,
   LogOut,
   TrendingUp,
 } from 'lucide-react';
@@ -23,7 +22,6 @@ const items = [
   { href: '/historico', label: 'Histórico', icon: History },
   { href: '/insights', label: 'Insights', icon: TrendingUp },
   { href: '/instancias', label: 'Instâncias', icon: Smartphone },
-  { href: '/operadores', label: 'Operadores', icon: Users },
 ];
 
 export function Sidebar() {
