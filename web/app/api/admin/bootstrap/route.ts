@@ -43,12 +43,16 @@ export async function GET(req: NextRequest) {
   try {
     const passwordHash = await bcrypt.hash(password, 10);
 
-    // Limpa users legacy criados em dev mode (sem senha + sem username)
-    const cleanup = await prisma.user.deleteMany({
+    // Desativa users legacy (sem username + sem senha) sem deletar
+    // — eles têm Message.createdById apontando, FK constraint
+    // se tentar delete. Inactive=true bloqueia login.
+    const cleanup = await prisma.user.updateMany({
       where: {
         username: null,
         passwordHash: null,
+        active: true,
       },
+      data: { active: false },
     });
 
     // Upsert do user principal (nome ADMIN sempre)
@@ -90,7 +94,7 @@ export async function GET(req: NextRequest) {
           role: user.role,
         },
         instance: { id: instance.id, name: instance.name },
-        cleanedUpLegacy: cleanup.count,
+        deactivatedLegacyUsers: cleanup.count,
       },
       credentials: {
         username,
