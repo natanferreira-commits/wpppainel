@@ -76,11 +76,20 @@ export const uploads = {
 
 // ─── Auth ───
 export const auth = {
-  login: (email: string, name?: string) =>
-    request<{ token: string; user: { id: string; email: string; name: string; role: string } }>(
-      '/auth/login',
-      { method: 'POST', body: JSON.stringify({ email, name }) },
-    ),
+  login: (username: string, password: string) =>
+    request<{
+      token: string;
+      user: {
+        id: string;
+        username: string | null;
+        email: string | null;
+        name: string;
+        role: string;
+      };
+    }>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ username, password }),
+    }),
 };
 
 // ─── Instances ───
@@ -189,11 +198,38 @@ export type CommunityInsights = {
     joins7d: number;
     lefts7d: number;
   };
+  realtime: {
+    hours: number;
+    joins: number;
+    lefts: number;
+    net: number;
+    churnPct: number;
+  };
   growthSeries: Array<{
     date: string;
     membersCount: number;
     channelViews: number | null;
   }>;
+  daily: Array<{
+    date: string;
+    joins: number;
+    lefts: number;
+    net: number;
+    membersCount: number | null;
+    churnPct: number;
+  }>;
+  comparison: {
+    days: number;
+    periodA: { label: string; joins: number; lefts: number; net: number };
+    periodB: { label: string; joins: number; lefts: number; net: number };
+    diff: {
+      joins: number;
+      lefts: number;
+      net: number;
+      joinsPct: number;
+      leftsPct: number;
+    };
+  };
   topBurners: Array<{
     id: string;
     content: string;
@@ -204,6 +240,12 @@ export type CommunityInsights = {
 };
 
 export const insights = {
-  community: (communityId: string) =>
-    request<CommunityInsights>(`/communities/${communityId}/insights`),
+  community: (communityId: string, params: { compareDays?: number } = {}) => {
+    const q = new URLSearchParams();
+    if (params.compareDays) q.set('compareDays', String(params.compareDays));
+    const qs = q.toString();
+    return request<CommunityInsights>(
+      `/communities/${communityId}/insights${qs ? `?${qs}` : ''}`,
+    );
+  },
 };

@@ -1,19 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
+import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 import { signToken } from '@/lib/jwt';
-import { fromZodError } from '../../_helpers/errors';
+import { errorResponse, fromZodError } from '../../_helpers/errors';
 
 export const dynamic = 'force-dynamic';
 
 // POST /api/auth/login
-// Auth fake: aceita qualquer email + senha em dev.
-// Cria user OPERATOR se não existe e retorna JWT.
-// Round 3 vira auth real com bcrypt.
+// Login real com username/email + senha (bcrypt).
+//
+// Aceita o "username" sendo username puro (TimeArena) OU email.
+// Busca user por OR de ambos os campos pra ser flexível.
 
 const LoginSchema = z.object({
-  email: z.string().email(),
-  name: z.string().optional(),
+  username: z.string().min(1),
+  password: z.string().min(1),
 });
 
 export async function POST(req: NextRequest) {
@@ -21,24 +23,31 @@ export async function POST(req: NextRequest) {
   const parsed = LoginSchema.safeParse(body);
   if (!parsed.success) return fromZodError(parsed.error);
 
-  const { email, name } = parsed.data;
-  const normalizedEmail = email.trim().toLowerCase();
+  const { username, password } = parsed.data;
+  const normalized = username.trim();
 
-  let user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+  const user = await prisma.user.findFirst({
+    where: {
+      active: true,
+      OR: [
+        { username: normalized },
+        { email: normalized.toLowerCase() },
+      ],
+    },
+  });
 
-  if (!user) {
-    user = await prisma.user.create({
-      data: {
-        email: normalizedEmail,
-        name: name ?? normalizedEmail.split('@')[0],
-        role: 'OPERATOR',
-      },
-    });
-  }
+  // Resposta unificada pra evitar leak de "user existe vs senha errada"
+  const invalid = () =>
+    errorResponse('Usuário ou senha inválidos', 401);
+
+  if (!user || !user.passwordHash) return invalid();
+
+  const ok = await bcrypt.compare(password, user.passwordHash);
+  if (!ok) return invalid();
 
   const token = await signToken({
     sub: user.id,
-    email: user.email,
+    email: user.email ?? user.username ?? '',
     role: user.role,
   });
 
@@ -46,6 +55,7 @@ export async function POST(req: NextRequest) {
     token,
     user: {
       id: user.id,
+      username: user.username,
       email: user.email,
       name: user.name,
       role: user.role,

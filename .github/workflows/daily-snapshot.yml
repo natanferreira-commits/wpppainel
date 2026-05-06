@@ -1,0 +1,32 @@
+name: Daily Snapshot (membersCount via Z-API)
+
+# Roda 1x/dia às 03:00 UTC = 00:00 BRT.
+# Pra cada Community, pega membersCount via Z-API e cria snapshot
+# em CommunityMetric. Alimenta o gráfico de crescimento + churn % por dia.
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: daily-snapshot
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Hit /api/cron/daily-snapshot
+        env:
+          URL: https://wpppainel-web.vercel.app/api/cron/daily-snapshot
+          CRON_TOKEN: ${{ secrets.CRON_TOKEN }}
+        run: |
+          response=$(curl -fsS -w "\nHTTP_CODE:%{http_code}" "$URL?token=$CRON_TOKEN")
+          echo "$response"
+          code=$(echo "$response" | tail -n1 | cut -d: -f2)
+          if [ "$code" != "200" ]; then
+            echo "::error::Daily snapshot falhou (HTTP $code)"
+            exit 1
+          fi

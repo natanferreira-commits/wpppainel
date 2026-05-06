@@ -1,7 +1,16 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { TrendingUp, TrendingDown, Users, UserPlus, UserMinus, Flame } from 'lucide-react';
+import {
+  TrendingUp,
+  TrendingDown,
+  Users,
+  UserPlus,
+  UserMinus,
+  Flame,
+  Activity,
+  GitCompare,
+} from 'lucide-react';
 import {
   insights as insightsApi,
   instances as instancesApi,
@@ -19,12 +28,11 @@ type CommunityOption = {
 export default function InsightsPage() {
   const [communities, setCommunities] = useState<CommunityOption[]>([]);
   const [selectedCommunityId, setSelectedCommunityId] = useState<string>('');
+  const [compareDays, setCompareDays] = useState<number>(7);
   const [data, setData] = useState<CommunityInsights | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Carrega lista de comunidades disponíveis (de todas as instâncias)
-  // e seleciona por padrão a com mais membros (a "principal" da operação)
   useEffect(() => {
     (async () => {
       try {
@@ -37,17 +45,11 @@ export default function InsightsPage() {
             instanceName: inst.name,
           })),
         );
-
         if (all.length === 0) {
-          setError(
-            'Nenhuma comunidade cadastrada — sincroniza grupos em /instancias primeiro.',
-          );
+          setError('Nenhuma comunidade cadastrada — sincroniza grupos em /instancias.');
           setLoading(false);
           return;
         }
-
-        // Ordena pela com mais membros (default cai na principal —
-        // ex: ✅ MATEUS CAUMO #1 com 363 ao invés de "teste da zapi" com 2)
         all.sort((a, b) => (b.membersCount ?? 0) - (a.membersCount ?? 0));
         setCommunities(all);
         setSelectedCommunityId(all[0].id);
@@ -58,16 +60,15 @@ export default function InsightsPage() {
     })();
   }, []);
 
-  // Quando troca de comunidade, busca insights dela
   useEffect(() => {
     if (!selectedCommunityId) return;
     setLoading(true);
     insightsApi
-      .community(selectedCommunityId)
+      .community(selectedCommunityId, { compareDays })
       .then(setData)
       .catch((err) => setError(err instanceof Error ? err.message : 'Erro'))
       .finally(() => setLoading(false));
-  }, [selectedCommunityId]);
+  }, [selectedCommunityId, compareDays]);
 
   if (error) {
     return (
@@ -84,7 +85,7 @@ export default function InsightsPage() {
         <div>
           <h1 className="text-2xl font-semibold text-slate-100">Insights</h1>
           <p className="text-sm text-slate-400 mt-1">
-            Crescimento e churn por mensagem · últimos 7 dias
+            Crescimento e churn da comunidade
           </p>
         </div>
 
@@ -115,29 +116,44 @@ export default function InsightsPage() {
         <p className="text-sm text-slate-500">Carregando insights…</p>
       )}
 
-      {data && <InsightsContent data={data} />}
+      {data && (
+        <InsightsContent
+          data={data}
+          compareDays={compareDays}
+          onChangeCompareDays={setCompareDays}
+        />
+      )}
     </div>
   );
 }
 
-function InsightsContent({ data }: { data: CommunityInsights }) {
+function InsightsContent({
+  data,
+  compareDays,
+  onChangeCompareDays,
+}: {
+  data: CommunityInsights;
+  compareDays: number;
+  onChangeCompareDays: (n: number) => void;
+}) {
   const growthIsPositive = data.summary.growth7dPct >= 0;
   const hasMetrics = data.growthSeries.length > 0;
   const hasBurners = data.topBurners.length > 0;
+  const hasEvents =
+    data.summary.joins7d + data.summary.lefts7d + data.realtime.joins + data.realtime.lefts > 0;
 
   return (
     <>
-      {!hasMetrics && (
+      {!hasEvents && !hasMetrics && (
         <div className="mb-6 bg-amber-500/10 border border-amber-500/30 rounded-lg px-4 py-3 text-xs text-amber-200">
-          🟡 <strong>Sem snapshots ainda</strong> — cada vez que você roda
-          "Sincronizar grupos" em <code className="bg-slate-900 px-1 rounded">/instancias</code>,
-          a gente cria 1 snapshot do dia. Pra ter o gráfico de crescimento, precisa
-          de pelo menos 2 snapshots em dias diferentes (o cron-job.org/GitHub
-          Actions também sincroniza diariamente quando estiver ativo).
+          🟡 <strong>Sem dados ainda</strong> — métricas começam a popular quando o
+          webhook Z-API estiver ativo (entradas/saídas em tempo real) e quando rodar
+          "Sincronizar grupos" pelo menos 2 dias seguidos (snapshots de membros).
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      {/* ── Cards principais (7d + tempo real) ── */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <Card
           icon={<Users size={18} />}
           label="Membros agora"
@@ -167,6 +183,39 @@ function InsightsContent({ data }: { data: CommunityInsights }) {
         />
       </div>
 
+      {/* ── Tempo real (últimas 24h) ── */}
+      <section className="bg-slate-900 rounded-xl border border-slate-800 p-5 mb-6">
+        <div className="flex items-center gap-2 mb-4">
+          <Activity size={16} className="text-emerald-400" />
+          <h2 className="text-sm font-semibold text-slate-100">
+            Tempo real — últimas {data.realtime.hours}h
+          </h2>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <MiniStat
+            label="Entradas"
+            value={`+${data.realtime.joins}`}
+            tone="positive"
+          />
+          <MiniStat
+            label="Saídas"
+            value={`-${data.realtime.lefts}`}
+            tone="negative"
+          />
+          <MiniStat
+            label="Líquido"
+            value={`${data.realtime.net >= 0 ? '+' : ''}${data.realtime.net}`}
+            tone={data.realtime.net >= 0 ? 'positive' : 'negative'}
+          />
+          <MiniStat
+            label="Churn 24h"
+            value={`${data.realtime.churnPct.toFixed(2)}%`}
+            tone={data.realtime.churnPct > 1 ? 'negative' : 'neutral'}
+          />
+        </div>
+      </section>
+
+      {/* ── Gráfico crescimento 30d ── */}
       <section className="bg-slate-900 rounded-xl border border-slate-800 p-5 mb-6">
         <h2 className="text-sm font-semibold text-slate-100 mb-4">
           Crescimento últimos 30 dias
@@ -175,11 +224,141 @@ function InsightsContent({ data }: { data: CommunityInsights }) {
           <GrowthChart series={data.growthSeries} />
         ) : (
           <p className="text-sm text-slate-500 italic py-8 text-center">
-            Sem snapshots ainda — clica em "Sincronizar grupos" pra criar o primeiro.
+            Sem snapshots ainda. Roda "Sincronizar grupos" em /instancias pra criar o
+            primeiro. Cron diário cria o resto.
           </p>
         )}
       </section>
 
+      {/* ── Tabela movimento diário ── */}
+      <section className="bg-slate-900 rounded-xl border border-slate-800 p-5 mb-6">
+        <h2 className="text-sm font-semibold text-slate-100 mb-4">
+          Movimento diário — últimos 7 dias
+        </h2>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-left text-xs uppercase tracking-wide text-slate-500">
+              <tr className="border-b border-slate-800">
+                <th className="pb-2 font-medium">Data</th>
+                <th className="pb-2 font-medium text-right">Entradas</th>
+                <th className="pb-2 font-medium text-right">Saídas</th>
+                <th className="pb-2 font-medium text-right">Líquido</th>
+                <th className="pb-2 font-medium text-right">Membros</th>
+                <th className="pb-2 font-medium text-right">Churn %</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.daily.map((d) => {
+                const date = new Date(d.date);
+                return (
+                  <tr key={d.date} className="border-b border-slate-800/50 last:border-b-0">
+                    <td className="py-2.5 text-slate-300">
+                      {date.toLocaleDateString('pt-BR', {
+                        day: '2-digit',
+                        month: '2-digit',
+                        weekday: 'short',
+                      })}
+                    </td>
+                    <td className="py-2.5 text-right text-emerald-400">
+                      {d.joins > 0 ? `+${d.joins}` : '0'}
+                    </td>
+                    <td className="py-2.5 text-right text-red-400">
+                      {d.lefts > 0 ? `-${d.lefts}` : '0'}
+                    </td>
+                    <td
+                      className={cn(
+                        'py-2.5 text-right font-medium',
+                        d.net > 0
+                          ? 'text-emerald-400'
+                          : d.net < 0
+                            ? 'text-red-400'
+                            : 'text-slate-500',
+                      )}
+                    >
+                      {d.net > 0 ? `+${d.net}` : d.net}
+                    </td>
+                    <td className="py-2.5 text-right text-slate-400">
+                      {d.membersCount?.toLocaleString('pt-BR') ?? '—'}
+                    </td>
+                    <td
+                      className={cn(
+                        'py-2.5 text-right',
+                        d.churnPct > 3 ? 'text-red-400' : 'text-slate-400',
+                      )}
+                    >
+                      {d.churnPct > 0 ? `${d.churnPct.toFixed(2)}%` : '—'}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* ── Comparativo períodos ── */}
+      <section className="bg-slate-900 rounded-xl border border-slate-800 p-5 mb-6">
+        <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
+          <div className="flex items-center gap-2">
+            <GitCompare size={16} className="text-slate-400" />
+            <h2 className="text-sm font-semibold text-slate-100">
+              Comparativo de períodos
+            </h2>
+          </div>
+          <select
+            value={compareDays}
+            onChange={(e) => onChangeCompareDays(parseInt(e.target.value, 10))}
+            className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-1.5 text-xs text-slate-100"
+          >
+            <option value={1}>último 1 dia vs 1 dia anterior</option>
+            <option value={3}>últimos 3 dias vs 3 anteriores</option>
+            <option value={7}>últimos 7 dias vs 7 anteriores</option>
+            <option value={14}>últimos 14 dias vs 14 anteriores</option>
+          </select>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="text-left text-xs uppercase tracking-wide text-slate-500">
+              <tr className="border-b border-slate-800">
+                <th className="pb-2 font-medium"></th>
+                <th className="pb-2 font-medium text-right">{data.comparison.periodA.label}</th>
+                <th className="pb-2 font-medium text-right">{data.comparison.periodB.label}</th>
+                <th className="pb-2 font-medium text-right">Diferença</th>
+              </tr>
+            </thead>
+            <tbody>
+              <ComparisonRow
+                label="Entradas"
+                a={data.comparison.periodA.joins}
+                b={data.comparison.periodB.joins}
+                diff={data.comparison.diff.joins}
+                diffPct={data.comparison.diff.joinsPct}
+                tone="positive"
+              />
+              <ComparisonRow
+                label="Saídas"
+                a={data.comparison.periodA.lefts}
+                b={data.comparison.periodB.lefts}
+                diff={data.comparison.diff.lefts}
+                diffPct={data.comparison.diff.leftsPct}
+                tone="negative"
+                invert
+              />
+              <ComparisonRow
+                label="Líquido"
+                a={data.comparison.periodA.net}
+                b={data.comparison.periodB.net}
+                diff={data.comparison.diff.net}
+                diffPct={null}
+                tone="neutral"
+              />
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* ── Top burners ── */}
       <section className="bg-slate-900 rounded-xl border border-slate-800 p-5">
         <div className="flex items-center gap-2 mb-3">
           <Flame size={16} className="text-red-400" />
@@ -189,7 +368,6 @@ function InsightsContent({ data }: { data: CommunityInsights }) {
         </div>
         <p className="text-xs text-slate-500 mb-4">
           Ordenado por número de saídas atribuídas à mensagem nos minutos seguintes ao envio.
-          Use isso pra identificar tipos de tip/promoção que afastam audiência.
         </p>
 
         {!hasBurners ? (
@@ -238,15 +416,6 @@ function InsightsContent({ data }: { data: CommunityInsights }) {
           </ul>
         )}
       </section>
-
-      <div className="mt-6 bg-slate-900/50 border border-slate-800 rounded-xl p-4 text-xs text-slate-400">
-        <p className="font-medium text-slate-300 mb-1">Próximas métricas (Round 3):</p>
-        <ul className="list-disc list-inside space-y-0.5">
-          <li>CTR por mensagem (com encurtador comunidade.mateuscaumo.com.br)</li>
-          <li>Conversão atribuída (cadastros via UTM)</li>
-          <li>Score por tipster quando virar Arena multi-afiliado</li>
-        </ul>
-      </div>
     </>
   );
 }
@@ -284,6 +453,81 @@ function Card({
   );
 }
 
+function MiniStat({
+  label,
+  value,
+  tone = 'neutral',
+}: {
+  label: string;
+  value: string;
+  tone?: 'positive' | 'negative' | 'neutral';
+}) {
+  const toneCls = {
+    positive: 'text-emerald-400',
+    negative: 'text-red-400',
+    neutral: 'text-slate-100',
+  }[tone];
+
+  return (
+    <div>
+      <p className="text-xs uppercase tracking-wide text-slate-500 font-medium">{label}</p>
+      <p className={cn('text-xl font-semibold mt-0.5', toneCls)}>{value}</p>
+    </div>
+  );
+}
+
+function ComparisonRow({
+  label,
+  a,
+  b,
+  diff,
+  diffPct,
+  tone,
+  invert = false,
+}: {
+  label: string;
+  a: number;
+  b: number;
+  diff: number;
+  diffPct: number | null;
+  tone: 'positive' | 'negative' | 'neutral';
+  // pra "Saídas" — diff positivo é ruim, então inverte cor
+  invert?: boolean;
+}) {
+  // determinação da cor do diff
+  const isImprovement = invert ? diff < 0 : diff > 0;
+  const isWorse = invert ? diff > 0 : diff < 0;
+  const diffColor =
+    diff === 0
+      ? 'text-slate-500'
+      : isImprovement
+        ? 'text-emerald-400'
+        : isWorse
+          ? 'text-red-400'
+          : 'text-slate-300';
+
+  const formatDiff = (n: number) => (n > 0 ? `+${n}` : `${n}`);
+
+  return (
+    <tr className="border-b border-slate-800/50 last:border-b-0">
+      <td className="py-2.5 text-slate-300">{label}</td>
+      <td className="py-2.5 text-right text-slate-200 font-medium">
+        {formatDiff(a)}
+      </td>
+      <td className="py-2.5 text-right text-slate-400">{formatDiff(b)}</td>
+      <td className={cn('py-2.5 text-right font-medium', diffColor)}>
+        {formatDiff(diff)}
+        {diffPct !== null && Math.abs(diffPct) > 0.1 && (
+          <span className="text-xs ml-1 opacity-80">
+            ({diffPct > 0 ? '+' : ''}
+            {diffPct.toFixed(0)}%)
+          </span>
+        )}
+      </td>
+    </tr>
+  );
+}
+
 function GrowthChart({
   series,
 }: {
@@ -299,7 +543,6 @@ function GrowthChart({
     const min = Math.min(...counts);
     const max = Math.max(...counts);
     const range = max - min || 1;
-
     return series.map((s, i) => {
       const x = PAD + (i / (series.length - 1)) * (W - 2 * PAD);
       const y = H - PAD - ((s.membersCount - min) / range) * (H - 2 * PAD);

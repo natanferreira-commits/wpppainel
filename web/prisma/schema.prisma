@@ -17,9 +17,10 @@ datasource db {
 
 model User {
   id           String   @id @default(cuid())
-  email        String   @unique
+  username     String?  @unique // login por username (preferencial)
+  email        String?  @unique // opcional — algumas contas internas só têm username
   name         String
-  passwordHash String? // null em dev — auth fake aceita qualquer senha
+  passwordHash String? // bcrypt hash da senha
   role         String   @default("OPERATOR") // ADMIN | OPERATOR | VIEWER
   active       Boolean  @default(true)
   createdAt    DateTime @default(now())

@@ -1,17 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
+import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 
 export const dynamic = 'force-dynamic';
 
-// GET /api/admin/bootstrap?token=SEED_TOKEN
+// GET /api/admin/bootstrap?token=SEED_TOKEN&username=TimeArena&password=...
 //
-// Bootstrap minimalista pra primeira vez (ou após reset de banco):
-//   - Cria 2 Users (natan admin, tipster operator)
-//   - Cria 1 Instance vazia "Mateus Caumo Tips" com id=inst_caumo_seed
+// Bootstrap pro setup inicial:
+//   - Cria User principal com username + senha real (bcrypt)
+//   - Apaga users antigos sem senha (legado dev mode)
+//   - Cria 1 Instance vazia "Mateus Caumo Tips" id=inst_caumo_seed
 //
-// NÃO cria Community/Group fake — esses vêm do /sync da Z-API depois.
+// Idempotente: pode rodar várias vezes (upsert + reset de senha).
 //
-// Idempotente: usa upsert, pode rodar várias vezes.
+// Defaults se não passar query params:
+//   username = TimeArena
+//   password = Arena2026 (TROCA depois pelo painel ou re-rodando o bootstrap
+//             com novo password)
+
+const DEFAULT_USERNAME = 'TimeArena';
+const DEFAULT_PASSWORD = 'Arena2026';
 
 export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get('token');
@@ -27,27 +35,40 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ message: 'Token inválido' }, { status: 401 });
   }
 
+  const username =
+    req.nextUrl.searchParams.get('username')?.trim() || DEFAULT_USERNAME;
+  const password =
+    req.nextUrl.searchParams.get('password') || DEFAULT_PASSWORD;
+
   try {
-    const admin = await prisma.user.upsert({
-      where: { email: 'natan@grupodupla.com.br' },
-      update: {},
-      create: {
-        email: 'natan@grupodupla.com.br',
-        name: 'Natan Puggian',
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    // Limpa users legacy criados em dev mode (sem senha + sem username)
+    const cleanup = await prisma.user.deleteMany({
+      where: {
+        username: null,
+        passwordHash: null,
+      },
+    });
+
+    // Upsert do user principal (nome ADMIN sempre)
+    const user = await prisma.user.upsert({
+      where: { username },
+      update: {
+        passwordHash,
+        active: true,
         role: 'ADMIN',
       },
-    });
-
-    const tipster = await prisma.user.upsert({
-      where: { email: 'tipster@grupodupla.com.br' },
-      update: {},
       create: {
-        email: 'tipster@grupodupla.com.br',
-        name: 'Tipster Caumo',
-        role: 'OPERATOR',
+        username,
+        name: username,
+        passwordHash,
+        role: 'ADMIN',
+        active: true,
       },
     });
 
+    // Instance vazia (será preenchida pelo /sync com Z-API)
     const instance = await prisma.instance.upsert({
       where: { id: 'inst_caumo_seed' },
       update: {},
@@ -61,10 +82,21 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       ok: true,
-      message: 'Bootstrap pronto. Agora rode /sync pra puxar dados reais da Z-API.',
+      message: 'Bootstrap pronto',
       created: {
-        users: [admin.email, tipster.email],
+        user: {
+          id: user.id,
+          username: user.username,
+          role: user.role,
+        },
         instance: { id: instance.id, name: instance.name },
+        cleanedUpLegacy: cleanup.count,
+      },
+      credentials: {
+        username,
+        password,
+        warning:
+          'Guarde essa senha — não vai aparecer de novo em rodadas futuras (use ?password= pra trocar).',
       },
       nextStep: `POST /api/instances/${instance.id}/sync`,
     });
