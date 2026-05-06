@@ -25,7 +25,7 @@ jobs:
     steps:
       - name: Hit /api/cron/tick
         env:
-          URL: https://wpppainel-web-4yhn.vercel.app/api/cron/tick
+          URL: https://wpppainel-web.vercel.app/api/cron/tick
           CRON_TOKEN: ${{ secrets.CRON_TOKEN }}
         run: |
           response=$(curl -fsS -w "\nHTTP_CODE:%{http_code}" "$URL?token=$CRON_TOKEN")
