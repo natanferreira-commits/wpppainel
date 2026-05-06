@@ -59,13 +59,11 @@ export async function POST(req: NextRequest) {
   const filename = `messages/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
   try {
-    // Compatível com Blob stores private E public:
-    //   - Store public:  blob.url é URL aberta
-    //   - Store private: blob.url é URL com token (Z-API consegue baixar)
+    // Como estamos com store público + filename único (timestamp + random),
+    // colisão é praticamente impossível — não precisa allowOverwrite.
     const blob = await put(filename, file, {
       access: 'public',
       addRandomSuffix: false,
-      allowOverwrite: true,
     });
     return NextResponse.json({
       url: blob.url,
@@ -74,8 +72,7 @@ export async function POST(req: NextRequest) {
       type: file.type,
     });
   } catch (err) {
-    // Se o store é privado e a SDK reclama de access:'public',
-    // tenta de novo SEM o access (cria blob com modo do store)
+    // Fallback: se o store for privado, tenta sem access:'public'
     if (
       err instanceof Error &&
       /Cannot use public access on a private store/i.test(err.message)
@@ -83,7 +80,6 @@ export async function POST(req: NextRequest) {
       try {
         const blob = await put(filename, file, {
           addRandomSuffix: false,
-          allowOverwrite: true,
         } as any);
         return NextResponse.json({
           url: blob.url,
