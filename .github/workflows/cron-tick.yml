@@ -1,0 +1,37 @@
+name: Cron Tick (worker do Painel)
+
+# Roda a cada 5 minutos batendo em /api/cron/tick.
+# GitHub Actions é "best-effort" — pode atrasar até 10min em horários
+# de pico do GitHub. Suficiente pra MVP. Pra granularidade de 1 minuto
+# real, dá pra usar cron-job.org como complemento.
+#
+# Setup: vai em Settings → Secrets and variables → Actions
+#        → New repository secret → Name: CRON_TOKEN
+#        → Value: (mesmo valor da env var CRON_TOKEN no Vercel)
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch: # permite rodar manualmente pelo Actions UI
+
+concurrency:
+  group: cron-tick
+  cancel-in-progress: false
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Hit /api/cron/tick
+        env:
+          URL: https://wpppainel-web-4yhn.vercel.app/api/cron/tick
+          CRON_TOKEN: ${{ secrets.CRON_TOKEN }}
+        run: |
+          response=$(curl -fsS -w "\nHTTP_CODE:%{http_code}" "$URL?token=$CRON_TOKEN")
+          echo "$response"
+          code=$(echo "$response" | tail -n1 | cut -d: -f2)
+          if [ "$code" != "200" ]; then
+            echo "::error::Worker tick falhou (HTTP $code)"
+            exit 1
+          fi
