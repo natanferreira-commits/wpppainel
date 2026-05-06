@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  Home,
   Send,
   Calendar,
   Clock,
@@ -18,7 +17,6 @@ import { cn } from '@/lib/cn';
 import { getCurrentUser, messages as messagesApi } from '@/lib/api';
 
 const items = [
-  { href: '/dashboard', label: 'Início', icon: Home },
   { href: '/nova-mensagem', label: 'Nova Mensagem', icon: Send },
   { href: '/agendadas', label: 'Agendadas', icon: Clock, badge: 'scheduled' },
   { href: '/calendario', label: 'Calendário', icon: Calendar },

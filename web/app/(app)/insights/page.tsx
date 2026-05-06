@@ -9,65 +9,131 @@ import {
 } from '@/lib/api';
 import { cn } from '@/lib/cn';
 
+type CommunityOption = {
+  id: string;
+  name: string;
+  membersCount: number | null;
+  instanceName: string;
+};
+
 export default function InsightsPage() {
+  const [communities, setCommunities] = useState<CommunityOption[]>([]);
+  const [selectedCommunityId, setSelectedCommunityId] = useState<string>('');
   const [data, setData] = useState<CommunityInsights | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Carrega lista de comunidades disponíveis (de todas as instâncias)
+  // e seleciona por padrão a com mais membros (a "principal" da operação)
   useEffect(() => {
     (async () => {
       try {
         const list = await instancesApi.list();
-        const community = list[0]?.communities[0];
-        if (!community) {
-          setError('Nenhuma comunidade cadastrada ainda.');
+        const all: CommunityOption[] = list.flatMap((inst) =>
+          inst.communities.map((c) => ({
+            id: c.id,
+            name: c.name,
+            membersCount: c.membersCount,
+            instanceName: inst.name,
+          })),
+        );
+
+        if (all.length === 0) {
+          setError(
+            'Nenhuma comunidade cadastrada — sincroniza grupos em /instancias primeiro.',
+          );
+          setLoading(false);
           return;
         }
-        const result = await insightsApi.community(community.id);
-        setData(result);
+
+        // Ordena pela com mais membros (default cai na principal —
+        // ex: ✅ MATEUS CAUMO #1 com 363 ao invés de "teste da zapi" com 2)
+        all.sort((a, b) => (b.membersCount ?? 0) - (a.membersCount ?? 0));
+        setCommunities(all);
+        setSelectedCommunityId(all[0].id);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Erro ao carregar insights');
-      } finally {
+        setError(err instanceof Error ? err.message : 'Erro ao carregar comunidades');
         setLoading(false);
       }
     })();
   }, []);
 
-  if (loading) {
+  // Quando troca de comunidade, busca insights dela
+  useEffect(() => {
+    if (!selectedCommunityId) return;
+    setLoading(true);
+    insightsApi
+      .community(selectedCommunityId)
+      .then(setData)
+      .catch((err) => setError(err instanceof Error ? err.message : 'Erro'))
+      .finally(() => setLoading(false));
+  }, [selectedCommunityId]);
+
+  if (error) {
     return (
       <div className="max-w-6xl mx-auto p-6">
+        <h1 className="text-2xl font-semibold text-slate-100 mb-2">Insights</h1>
+        <p className="text-sm text-red-400">{error}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-6xl mx-auto p-6">
+      <header className="mb-6 flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-100">Insights</h1>
+          <p className="text-sm text-slate-400 mt-1">
+            Crescimento e churn por mensagem · últimos 7 dias
+          </p>
+        </div>
+
+        {communities.length > 0 && (
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wide">
+              Comunidade
+            </label>
+            <select
+              value={selectedCommunityId}
+              onChange={(e) => setSelectedCommunityId(e.target.value)}
+              className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 min-w-[260px]"
+            >
+              {communities.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                  {c.membersCount
+                    ? ` · ${c.membersCount.toLocaleString('pt-BR')} membros`
+                    : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+      </header>
+
+      {loading && !data && (
         <p className="text-sm text-slate-500">Carregando insights…</p>
-      </div>
-    );
-  }
+      )}
 
-  if (error || !data) {
-    return (
-      <div className="max-w-6xl mx-auto p-6">
-        <p className="text-sm text-red-400">{error ?? 'Sem dados'}</p>
-      </div>
-    );
-  }
+      {data && <InsightsContent data={data} />}
+    </div>
+  );
+}
 
+function InsightsContent({ data }: { data: CommunityInsights }) {
   const growthIsPositive = data.summary.growth7dPct >= 0;
   const hasMetrics = data.growthSeries.length > 0;
   const hasBurners = data.topBurners.length > 0;
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
-      <header className="mb-6">
-        <h1 className="text-2xl font-semibold text-slate-100">Insights</h1>
-        <p className="text-sm text-slate-400">
-          Comunidade <span className="font-medium text-slate-200">{data.community.name}</span> ·
-          últimos 7 dias
-        </p>
-      </header>
-
+    <>
       {!hasMetrics && (
         <div className="mb-6 bg-amber-500/10 border border-amber-500/30 rounded-lg px-4 py-3 text-xs text-amber-200">
-          🟡 <strong>Sem dados ainda</strong> — métricas começam a aparecer quando
-          você fizer "Sincronizar grupos" e o webhook Z-API estiver recebendo eventos
-          de entrada/saída de membros.
+          🟡 <strong>Sem snapshots ainda</strong> — cada vez que você roda
+          "Sincronizar grupos" em <code className="bg-slate-900 px-1 rounded">/instancias</code>,
+          a gente cria 1 snapshot do dia. Pra ter o gráfico de crescimento, precisa
+          de pelo menos 2 snapshots em dias diferentes (o cron-job.org/GitHub
+          Actions também sincroniza diariamente quando estiver ativo).
         </div>
       )}
 
@@ -181,7 +247,7 @@ export default function InsightsPage() {
           <li>Score por tipster quando virar Arena multi-afiliado</li>
         </ul>
       </div>
-    </div>
+    </>
   );
 }
 
