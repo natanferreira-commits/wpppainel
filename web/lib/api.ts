@@ -48,6 +48,32 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+// ─── Upload de imagem (Vercel Blob) ───
+export const uploads = {
+  image: async (file: File): Promise<{ url: string; size: number }> => {
+    const token = getToken();
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch(`${BASE}/upload`, {
+      method: 'POST',
+      cache: 'no-store',
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+      body: formData,
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      let message = text;
+      try {
+        message = JSON.parse(text).message ?? text;
+      } catch {
+        // mantém texto bruto
+      }
+      throw new Error(message);
+    }
+    return res.json();
+  },
+};
+
 // ─── Auth ───
 export const auth = {
   login: (email: string, name?: string) =>

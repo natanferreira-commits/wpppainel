@@ -44,30 +44,33 @@ export default function InsightsPage() {
   if (error || !data) {
     return (
       <div className="max-w-6xl mx-auto p-6">
-        <p className="text-sm text-red-600">{error ?? 'Sem dados'}</p>
+        <p className="text-sm text-red-400">{error ?? 'Sem dados'}</p>
       </div>
     );
   }
 
   const growthIsPositive = data.summary.growth7dPct >= 0;
+  const hasMetrics = data.growthSeries.length > 0;
+  const hasBurners = data.topBurners.length > 0;
 
   return (
     <div className="max-w-6xl mx-auto p-6">
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold text-slate-900">Insights</h1>
-        <p className="text-sm text-slate-500">
-          Comunidade <span className="font-medium text-slate-700">{data.community.name}</span> ·
+        <h1 className="text-2xl font-semibold text-slate-100">Insights</h1>
+        <p className="text-sm text-slate-400">
+          Comunidade <span className="font-medium text-slate-200">{data.community.name}</span> ·
           últimos 7 dias
         </p>
       </header>
 
-      {/* aviso fake data */}
-      <div className="mb-6 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-xs text-amber-800">
-        🟡 <strong>Dados de demonstração</strong> — quando a Z-API estiver conectada (cron diário),
-        substitui automaticamente pelos números reais.
-      </div>
+      {!hasMetrics && (
+        <div className="mb-6 bg-amber-500/10 border border-amber-500/30 rounded-lg px-4 py-3 text-xs text-amber-200">
+          🟡 <strong>Sem dados ainda</strong> — métricas começam a aparecer quando
+          você fizer "Sincronizar grupos" e o webhook Z-API estiver recebendo eventos
+          de entrada/saída de membros.
+        </div>
+      )}
 
-      {/* ── Cards principais ── */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
         <Card
           icon={<Users size={18} />}
@@ -98,19 +101,23 @@ export default function InsightsPage() {
         />
       </div>
 
-      {/* ── Gráfico de crescimento ── */}
-      <section className="bg-white rounded-xl border border-slate-200 p-5 mb-6">
-        <h2 className="text-sm font-semibold text-slate-900 mb-4">
+      <section className="bg-slate-900 rounded-xl border border-slate-800 p-5 mb-6">
+        <h2 className="text-sm font-semibold text-slate-100 mb-4">
           Crescimento últimos 30 dias
         </h2>
-        <GrowthChart series={data.growthSeries} />
+        {hasMetrics ? (
+          <GrowthChart series={data.growthSeries} />
+        ) : (
+          <p className="text-sm text-slate-500 italic py-8 text-center">
+            Sem snapshots ainda — clica em "Sincronizar grupos" pra criar o primeiro.
+          </p>
+        )}
       </section>
 
-      {/* ── Top mensagens queimadoras ── */}
-      <section className="bg-white rounded-xl border border-slate-200 p-5">
+      <section className="bg-slate-900 rounded-xl border border-slate-800 p-5">
         <div className="flex items-center gap-2 mb-3">
-          <Flame size={16} className="text-red-500" />
-          <h2 className="text-sm font-semibold text-slate-900">
+          <Flame size={16} className="text-red-400" />
+          <h2 className="text-sm font-semibold text-slate-100">
             Mensagens que mais geraram saídas (7d)
           </h2>
         </div>
@@ -119,22 +126,23 @@ export default function InsightsPage() {
           Use isso pra identificar tipos de tip/promoção que afastam audiência.
         </p>
 
-        {data.topBurners.length === 0 ? (
+        {!hasBurners ? (
           <p className="text-sm text-slate-500 italic">
-            🎉 Nenhuma mensagem gerou saída atribuída no período.
+            🎉 Nenhuma mensagem gerou saída atribuída no período (precisa do webhook
+            Z-API ativo).
           </p>
         ) : (
           <ul className="space-y-2">
             {data.topBurners.map((m, idx) => (
               <li
                 key={m.id}
-                className="flex items-start gap-3 p-3 rounded-lg border border-slate-200 hover:bg-slate-50 transition"
+                className="flex items-start gap-3 p-3 rounded-lg border border-slate-800 hover:bg-slate-800/40 transition"
               >
-                <div className="text-2xl font-semibold text-slate-300 w-8 text-center">
+                <div className="text-2xl font-semibold text-slate-700 w-8 text-center">
                   #{idx + 1}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm text-slate-800 line-clamp-2 break-words">
+                  <p className="text-sm text-slate-200 line-clamp-2 break-words">
                     {m.content}
                   </p>
                   <p className="text-xs text-slate-500 mt-1">
@@ -149,10 +157,12 @@ export default function InsightsPage() {
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-lg font-semibold text-red-600">{m.leftsTotal}</p>
-                  <p className="text-[10px] text-slate-500 uppercase tracking-wide">saídas</p>
+                  <p className="text-lg font-semibold text-red-400">{m.leftsTotal}</p>
+                  <p className="text-[10px] text-slate-500 uppercase tracking-wide">
+                    saídas
+                  </p>
                   {m.leftsIn60min > 0 && (
-                    <p className="text-[10px] text-amber-700 mt-0.5">
+                    <p className="text-[10px] text-amber-300 mt-0.5">
                       {m.leftsIn60min} em 1h
                     </p>
                   )}
@@ -163,11 +173,10 @@ export default function InsightsPage() {
         )}
       </section>
 
-      {/* ── Roadmap ── */}
-      <div className="mt-6 bg-slate-50 border border-slate-200 rounded-xl p-4 text-xs text-slate-600">
-        <p className="font-medium text-slate-700 mb-1">Próximas métricas (Round 3):</p>
+      <div className="mt-6 bg-slate-900/50 border border-slate-800 rounded-xl p-4 text-xs text-slate-400">
+        <p className="font-medium text-slate-300 mb-1">Próximas métricas (Round 3):</p>
         <ul className="list-disc list-inside space-y-0.5">
-          <li>CTR por mensagem (com link encurtador próprio)</li>
+          <li>CTR por mensagem (com encurtador comunidade.mateuscaumo.com.br)</li>
           <li>Conversão atribuída (cadastros via UTM)</li>
           <li>Score por tipster quando virar Arena multi-afiliado</li>
         </ul>
@@ -175,8 +184,6 @@ export default function InsightsPage() {
     </div>
   );
 }
-
-// ─── Card ────────────────────────────────────────────────────────────────
 
 function Card({
   icon,
@@ -192,24 +199,24 @@ function Card({
   tone?: 'positive' | 'negative' | 'neutral';
 }) {
   const toneCls = {
-    positive: 'text-emerald-600',
-    negative: 'text-red-600',
-    neutral: 'text-slate-700',
+    positive: 'text-emerald-400',
+    negative: 'text-red-400',
+    neutral: 'text-slate-100',
   }[tone];
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 p-4">
+    <div className="bg-slate-900 rounded-xl border border-slate-800 p-4">
       <div className="flex items-center justify-between mb-2">
-        <span className="text-xs uppercase tracking-wide text-slate-500">{label}</span>
-        <span className={cn('text-slate-400', toneCls)}>{icon}</span>
+        <span className="text-xs uppercase tracking-wide text-slate-500 font-medium">
+          {label}
+        </span>
+        <span className={cn('text-slate-500', toneCls)}>{icon}</span>
       </div>
       <p className={cn('text-2xl font-semibold', toneCls)}>{value}</p>
       <p className="text-xs text-slate-500 mt-1">{sub}</p>
     </div>
   );
 }
-
-// ─── Gráfico SVG inline (sem dependências externas) ───────────────────────
 
 function GrowthChart({
   series,
@@ -235,7 +242,11 @@ function GrowthChart({
   }, [series]);
 
   if (points.length < 2) {
-    return <p className="text-sm text-slate-500">Sem dados suficientes ainda.</p>;
+    return (
+      <p className="text-sm text-slate-500 italic">
+        Sem dados suficientes ainda (precisa de pelo menos 2 snapshots).
+      </p>
+    );
   }
 
   const pathLine = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
@@ -247,15 +258,11 @@ function GrowthChart({
   return (
     <div className="relative w-full">
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-48">
-        {/* área preenchida */}
-        <path d={pathFill} fill="rgb(16 185 129 / 0.08)" />
-        {/* linha */}
-        <path d={pathLine} fill="none" stroke="rgb(16 185 129)" strokeWidth={2} />
-        {/* pontos */}
+        <path d={pathFill} fill="rgb(16 185 129 / 0.1)" />
+        <path d={pathLine} fill="none" stroke="rgb(52 211 153)" strokeWidth={2} />
         {points.map((p, i) => (
-          <circle key={i} cx={p.x} cy={p.y} r={2.5} fill="rgb(16 185 129)" />
+          <circle key={i} cx={p.x} cy={p.y} r={2.5} fill="rgb(52 211 153)" />
         ))}
-        {/* eixo x labels (primeiro / meio / último) */}
         {[0, Math.floor(points.length / 2), points.length - 1].map((i) => {
           const p = points[i];
           const date = new Date(p.date);
@@ -272,7 +279,6 @@ function GrowthChart({
             </text>
           );
         })}
-        {/* eixo y labels */}
         <text x={4} y={PAD + 4} fontSize="10" fill="rgb(100 116 139)">
           {maxCount.toLocaleString('pt-BR')}
         </text>

@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   Home,
   Send,
@@ -35,7 +35,6 @@ export function Sidebar() {
 
   const [scheduledCount, setScheduledCount] = useState<number | null>(null);
 
-  // Polling leve do count de mensagens agendadas (atualiza badge da sidebar)
   useEffect(() => {
     let alive = true;
     async function refresh() {
@@ -43,7 +42,7 @@ export function Sidebar() {
         const list = await messagesApi.list({ status: 'SCHEDULED', limit: 100 });
         if (alive) setScheduledCount(list.length);
       } catch {
-        // silencioso — sidebar não pode quebrar a página
+        // silencioso
       }
     }
     refresh();
@@ -61,9 +60,9 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="w-60 bg-white border-r border-slate-200 flex flex-col">
-      <div className="px-5 py-4 border-b border-slate-200">
-        <h1 className="font-semibold text-slate-900">Painel Dupla</h1>
+    <aside className="w-60 bg-slate-900 border-r border-slate-800 flex flex-col">
+      <div className="px-5 py-4 border-b border-slate-800">
+        <h1 className="font-semibold text-slate-100">Painel Dupla</h1>
         <p className="text-xs text-slate-500">Grupo Dupla</p>
       </div>
 
@@ -80,8 +79,8 @@ export function Sidebar() {
               className={cn(
                 'flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition',
                 active
-                  ? 'bg-emerald-50 text-emerald-700 font-medium'
-                  : 'text-slate-600 hover:bg-slate-50',
+                  ? 'bg-emerald-500/10 text-emerald-400 font-medium'
+                  : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200',
               )}
             >
               <Icon size={16} />
@@ -90,7 +89,9 @@ export function Sidebar() {
                 <span
                   className={cn(
                     'text-[10px] font-semibold px-1.5 py-0.5 rounded-full min-w-[20px] text-center',
-                    active ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-700',
+                    active
+                      ? 'bg-emerald-500 text-white'
+                      : 'bg-slate-800 text-slate-300',
                   )}
                 >
                   {scheduledCount}
@@ -101,19 +102,19 @@ export function Sidebar() {
         })}
       </nav>
 
-      <div className="p-3 border-t border-slate-200">
+      <div className="p-3 border-t border-slate-800">
         {user && (
           <div className="px-3 py-2">
-            <p className="text-sm font-medium text-slate-900 truncate">{user.name}</p>
+            <p className="text-sm font-medium text-slate-100 truncate">{user.name}</p>
             <p className="text-xs text-slate-500 truncate">{user.email}</p>
-            <p className="text-[10px] uppercase tracking-wide text-emerald-600 mt-1">
+            <p className="text-[10px] uppercase tracking-wide text-emerald-400 mt-1 font-semibold">
               {user.role}
             </p>
           </div>
         )}
         <button
           onClick={logout}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-600 hover:bg-slate-50 transition"
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-slate-400 hover:bg-slate-800/50 hover:text-slate-200 transition"
         >
           <LogOut size={16} />
           Sair

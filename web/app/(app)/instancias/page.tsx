@@ -49,8 +49,8 @@ export default function InstanciasPage() {
   return (
     <div className="max-w-5xl mx-auto p-6">
       <header className="mb-6">
-        <h1 className="text-2xl font-semibold text-slate-900">Instâncias</h1>
-        <p className="text-sm text-slate-500">
+        <h1 className="text-2xl font-semibold text-slate-100">Instâncias</h1>
+        <p className="text-sm text-slate-400">
           Números WhatsApp conectados ao painel via Z-API.
         </p>
       </header>
@@ -59,15 +59,18 @@ export default function InstanciasPage() {
 
       <div className="space-y-3">
         {items.map((inst) => (
-          <div key={inst.id} className="bg-white rounded-xl border border-slate-200 p-5">
+          <div
+            key={inst.id}
+            className="bg-slate-900 rounded-xl border border-slate-800 p-5"
+          >
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1">
-                <h3 className="font-medium text-slate-900">{inst.name}</h3>
-                <p className="text-sm text-slate-500">
+                <h3 className="font-medium text-slate-100">{inst.name}</h3>
+                <p className="text-sm text-slate-400">
                   {inst.phoneNumber ?? 'sem número'}
                 </p>
                 {inst.communities[0] && (
-                  <p className="text-xs text-slate-400 mt-1">
+                  <p className="text-xs text-slate-500 mt-1">
                     Comunidade: {inst.communities[0].name} ·{' '}
                     {inst.communities[0].membersCount?.toLocaleString('pt-BR') ?? '?'}{' '}
                     membros
@@ -78,21 +81,21 @@ export default function InstanciasPage() {
                 className={cn(
                   'text-xs font-medium px-2 py-1 rounded-md border whitespace-nowrap',
                   inst.status === 'CONNECTED'
-                    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                    : 'bg-red-50 text-red-700 border-red-200',
+                    ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30'
+                    : 'bg-red-500/10 text-red-300 border-red-500/30',
                 )}
               >
                 {inst.status === 'CONNECTED' ? '🟢 Conectado' : '🔴 ' + inst.status}
               </span>
             </div>
 
-            <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
+            <div className="mt-3 pt-3 border-t border-slate-800 flex items-center justify-between gap-3">
               <div className="text-xs text-slate-500">
                 {feedback?.instanceId === inst.id && (
                   <span
                     className={cn(
                       'flex items-center gap-1',
-                      feedback.type === 'ok' ? 'text-emerald-700' : 'text-red-600',
+                      feedback.type === 'ok' ? 'text-emerald-400' : 'text-red-400',
                     )}
                   >
                     {feedback.type === 'ok' ? (
@@ -107,7 +110,7 @@ export default function InstanciasPage() {
               <button
                 onClick={() => handleSync(inst.id)}
                 disabled={syncing === inst.id}
-                className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-300 text-sm hover:bg-slate-50 disabled:opacity-50"
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-900 text-sm text-slate-300 hover:bg-slate-800 disabled:opacity-50"
               >
                 <RefreshCw
                   size={14}
@@ -119,7 +122,7 @@ export default function InstanciasPage() {
           </div>
         ))}
 
-        <div className="bg-slate-50 border border-dashed border-slate-300 rounded-xl p-6 text-center">
+        <div className="bg-slate-900/50 border border-dashed border-slate-700 rounded-xl p-6 text-center">
           <p className="text-sm text-slate-500">
             Adicionar nova instância (com QR code via Z-API) — Round 2.5
           </p>
