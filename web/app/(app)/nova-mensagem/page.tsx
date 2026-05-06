@@ -22,6 +22,7 @@ import {
   type DestinationType,
 } from '@/lib/api';
 import { WhatsAppPreview } from '@/components/whatsapp-preview';
+import { MESSAGE_TEMPLATE } from '@/lib/templates';
 import { cn } from '@/lib/cn';
 
 type Mode = 'now' | 'scheduled';
@@ -42,7 +43,7 @@ export default function NovaMensagemPage() {
     useState<DestinationType>('ANNOUNCEMENT_CHANNEL');
   const [groupId, setGroupId] = useState<string>('');
   const [groupIds, setGroupIds] = useState<string[]>([]);
-  const [content, setContent] = useState<string>('');
+  const [content, setContent] = useState<string>(MESSAGE_TEMPLATE);
   const [imageUrl, setImageUrl] = useState<string>('');
   const [uploading, setUploading] = useState(false);
   const [mode, setMode] = useState<Mode>('scheduled');
@@ -193,7 +194,7 @@ export default function NovaMensagemPage() {
       }
 
       if (created.status !== 'FAILED') {
-        setContent('');
+        setContent(MESSAGE_TEMPLATE);
         setImageUrl('');
       }
     } catch (err) {

@@ -31,6 +31,8 @@ const PatchSchema = z.object({
   status: z.literal('CANCELLED').optional(),
   content: z.string().min(1).max(4096).optional(),
   scheduledFor: z.string().datetime().optional(),
+  // null remove a imagem; string troca; undefined mantém
+  imageUrl: z.string().url().nullable().optional(),
 });
 
 export async function PATCH(req: NextRequest, ctx: { params: { id: string } }) {
@@ -48,8 +50,14 @@ export async function PATCH(req: NextRequest, ctx: { params: { id: string } }) {
     return errorResponse(`Mensagem já está em ${message.status}, não pode ser editada`, 400);
   }
 
-  // RN-04: editar até 1 minuto antes do envio
-  if (parsed.data.scheduledFor || parsed.data.content) {
+  // RN-04: editar até 1 minuto antes do envio (vale pra qualquer
+  // edição de conteúdo: content, scheduledFor, imageUrl)
+  const isEditingContent =
+    parsed.data.scheduledFor !== undefined ||
+    parsed.data.content !== undefined ||
+    parsed.data.imageUrl !== undefined;
+
+  if (isEditingContent) {
     const minutesUntilSend = (message.scheduledFor.getTime() - Date.now()) / 60000;
     if (minutesUntilSend < 1) {
       return errorResponse(
@@ -67,6 +75,8 @@ export async function PATCH(req: NextRequest, ctx: { params: { id: string } }) {
       scheduledFor: parsed.data.scheduledFor
         ? new Date(parsed.data.scheduledFor)
         : undefined,
+      // imageUrl: null = remove imagem; string = troca; undefined = mantém
+      imageUrl: parsed.data.imageUrl === undefined ? undefined : parsed.data.imageUrl,
     },
     include: {
       targets: { include: { group: true } },

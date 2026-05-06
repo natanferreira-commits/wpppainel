@@ -170,7 +170,7 @@ export const messages = {
     }),
   update: (
     id: string,
-    input: { content?: string; scheduledFor?: string },
+    input: { content?: string; scheduledFor?: string; imageUrl?: string | null },
   ) =>
     request<Message>(`/messages/${id}`, {
       method: 'PATCH',
