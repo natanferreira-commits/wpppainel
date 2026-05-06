@@ -1,12 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
+import { getZapiClient } from '@/lib/zapi';
+import { dispatchMessage } from '@/lib/sender';
 import { errorResponse, fromZodError, notFound } from '../_helpers/errors';
 
 export const dynamic = 'force-dynamic';
 
 // POST /api/messages — cria mensagem (imediata ou agendada)
 // GET  /api/messages — lista com filtros opcionais
+//
+// Lógica de "enviar agora":
+//   Se scheduledFor for omitido OU já passou (ou está nos próximos 30s),
+//   tenta despachar SÍNCRONO na mesma request (chama Z-API direto).
+//   Frontend recebe a mensagem já com status SENT/FAILED.
+//
+//   Se scheduledFor for futuro (>30s à frente), cria SCHEDULED e o
+//   worker (cron-job.org / GitHub Actions) despacha quando chegar a hora.
 
 const DestinationType = z.enum(['ANNOUNCEMENT_CHANNEL', 'GROUP', 'MULTI_GROUP']);
 
@@ -46,18 +56,23 @@ const CreateMessageSchema = z
     }
   });
 
+const IMMEDIATE_THRESHOLD_MS = 30_000; // <30s no futuro = "agora"
+
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
   const parsed = CreateMessageSchema.safeParse(body);
   if (!parsed.success) return fromZodError(parsed.error);
 
   const dto = parsed.data;
-  const scheduledFor = dto.scheduledFor ? new Date(dto.scheduledFor) : new Date();
-  if (dto.scheduledFor && scheduledFor < new Date()) {
+  const now = new Date();
+  const scheduledFor = dto.scheduledFor ? new Date(dto.scheduledFor) : now;
+
+  // RN-03: agendamento não pode ser no passado (com tolerância de 30s)
+  if (dto.scheduledFor && scheduledFor.getTime() < now.getTime() - IMMEDIATE_THRESHOLD_MS) {
     return errorResponse('Data de agendamento não pode ser no passado');
   }
 
-  // Resolve grupos alvo (canal de anúncios busca o group isAnnouncementChannel da comunidade)
+  // Resolve grupos alvo
   let targetGroupIds: string[] = [];
   if (dto.destinationType === 'ANNOUNCEMENT_CHANNEL') {
     const channel = await prisma.group.findFirst({
@@ -71,6 +86,7 @@ export async function POST(req: NextRequest) {
     targetGroupIds = dto.groupIds!;
   }
 
+  // Cria mensagem em SCHEDULED
   const message = await prisma.message.create({
     data: {
       instanceId: dto.instanceId,
@@ -92,6 +108,46 @@ export async function POST(req: NextRequest) {
     },
   });
 
+  // Decide se dispara síncrono ou deixa pro worker
+  const isImmediate =
+    !dto.scheduledFor ||
+    scheduledFor.getTime() <= now.getTime() + IMMEDIATE_THRESHOLD_MS;
+
+  if (isImmediate) {
+    let zapi;
+    try {
+      zapi = getZapiClient();
+    } catch {
+      // Z-API não configurada — devolve a mensagem em SCHEDULED com erro,
+      // worker pode despachar depois se Z-API for setada
+      return NextResponse.json(
+        {
+          ...message,
+          _warning: 'Z-API não configurada — mensagem ficou agendada (status SCHEDULED)',
+        },
+        { status: 201 },
+      );
+    }
+
+    const outcome = await dispatchMessage(prisma, zapi, message);
+
+    // Re-busca a mensagem com status final pra retornar pro frontend
+    const updated = await prisma.message.findUnique({
+      where: { id: message.id },
+      include: {
+        targets: { include: { group: true } },
+        instance: true,
+        community: true,
+        createdBy: { select: { id: true, name: true, email: true } },
+      },
+    });
+
+    return NextResponse.json(updated, {
+      status: outcome.status === 'FAILED' ? 502 : 201,
+    });
+  }
+
+  // Caso contrário: agendado pro futuro, vai pro cron-job/GitHub Actions
   return NextResponse.json(message, { status: 201 });
 }
 

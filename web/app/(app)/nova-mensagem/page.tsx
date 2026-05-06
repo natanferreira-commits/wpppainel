@@ -168,16 +168,34 @@ export default function NovaMensagemPage() {
 
       const created = await messagesApi.create(payload);
 
-      setFeedback({
-        type: 'ok',
-        text:
-          mode === 'now'
-            ? `Mensagem criada (id ${created.id.slice(0, 8)}…). Worker vai despachar no próximo round.`
-            : `Agendada pra ${scheduledForDate.toLocaleString('pt-BR')}.`,
-      });
+      // O backend agora dispara síncrono em "enviar agora": retorna
+      // SENT (sucesso), FAILED (erro Z-API) ou SCHEDULED (futuro).
+      if (created.status === 'SENT') {
+        setFeedback({
+          type: 'ok',
+          text: '✅ Enviada com sucesso!',
+        });
+      } else if (created.status === 'FAILED') {
+        setFeedback({
+          type: 'error',
+          text: `❌ Falhou no envio: ${created.lastError ?? 'erro desconhecido'}`,
+        });
+      } else if (created.status === 'SCHEDULED') {
+        setFeedback({
+          type: 'ok',
+          text: `🕒 Agendada pra ${scheduledForDate.toLocaleString('pt-BR')}. O worker dispara no horário.`,
+        });
+      } else {
+        setFeedback({
+          type: 'ok',
+          text: `Mensagem criada (status ${created.status}).`,
+        });
+      }
 
-      setContent('');
-      setImageUrl('');
+      if (created.status !== 'FAILED') {
+        setContent('');
+        setImageUrl('');
+      }
     } catch (err) {
       setFeedback({
         type: 'error',
