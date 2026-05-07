@@ -33,6 +33,7 @@ const PatchSchema = z.object({
   scheduledFor: z.string().datetime().optional(),
   // null remove a imagem; string troca; undefined mantém
   imageUrl: z.string().url().nullable().optional(),
+  mentionAll: z.boolean().optional(),
 });
 
 export async function PATCH(req: NextRequest, ctx: { params: { id: string } }) {
@@ -77,6 +78,7 @@ export async function PATCH(req: NextRequest, ctx: { params: { id: string } }) {
         : undefined,
       // imageUrl: null = remove imagem; string = troca; undefined = mantém
       imageUrl: parsed.data.imageUrl === undefined ? undefined : parsed.data.imageUrl,
+      mentionAll: parsed.data.mentionAll,
     },
     include: {
       targets: { include: { group: true } },

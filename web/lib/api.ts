@@ -163,6 +163,7 @@ export type CreateMessageInput = {
   groupIds?: string[];
   content: string;
   imageUrl?: string;
+  mentionAll?: boolean;
   scheduledFor?: string; // ISO datetime
   createdById: string;
 };
@@ -172,6 +173,7 @@ export type Message = {
   destinationType: DestinationType;
   content: string;
   imageUrl: string | null;
+  mentionAll: boolean;
   scheduledFor: string;
   status: string;
   sentAt: string | null;
@@ -207,7 +209,12 @@ export const messages = {
     }),
   update: (
     id: string,
-    input: { content?: string; scheduledFor?: string; imageUrl?: string | null },
+    input: {
+      content?: string;
+      scheduledFor?: string;
+      imageUrl?: string | null;
+      mentionAll?: boolean;
+    },
   ) =>
     request<Message>(`/messages/${id}`, {
       method: 'PATCH',

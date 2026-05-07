@@ -228,6 +228,7 @@ function EditModal({
   const [content, setContent] = useState(message.content);
   const [imageUrl, setImageUrl] = useState(message.imageUrl ?? '');
   const [imageTab, setImageTab] = useState<ImageTab>('bank');
+  const [mentionAll, setMentionAll] = useState<boolean>(message.mentionAll);
   const [scheduleDate, setScheduleDate] = useState(
     initialDate.toISOString().slice(0, 10),
   );
@@ -268,6 +269,7 @@ function EditModal({
         scheduledFor: newScheduledFor.toISOString(),
         // null se removida, string nova se trocou, manter atual se não mexeu
         imageUrl: imageUrl ? imageUrl : message.imageUrl ? null : undefined,
+        mentionAll,
       });
       onSaved();
     } catch (err) {
@@ -408,6 +410,32 @@ function EditModal({
                 )}
               </>
             )}
+          </div>
+
+          {/* Mencionar todos */}
+          <div>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={mentionAll}
+                onChange={(e) => setMentionAll(e.target.checked)}
+                className="mt-0.5 rounded border-slate-600 bg-slate-800 text-emerald-500"
+              />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-slate-200">
+                  Mencionar todos os membros
+                </p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {mentionAll ? (
+                    <span className="text-amber-300">
+                      ⚠️ Cada membro recebe notificação push individual.
+                    </span>
+                  ) : (
+                    'Sem mention — mensagem chega normal.'
+                  )}
+                </p>
+              </div>
+            </label>
           </div>
 
           {/* Horário */}

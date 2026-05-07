@@ -29,6 +29,7 @@ const CreateMessageSchema = z
     groupIds: z.array(z.string()).optional(),
     content: z.string().min(1).max(4096),
     imageUrl: z.string().url().optional(),
+    mentionAll: z.boolean().optional(),
     scheduledFor: z.string().datetime().optional(),
     createdById: z.string(),
   })
@@ -94,6 +95,7 @@ export async function POST(req: NextRequest) {
       destinationType: dto.destinationType,
       content: dto.content,
       imageUrl: dto.imageUrl ?? null,
+      mentionAll: dto.mentionAll ?? false,
       scheduledFor,
       status: 'SCHEDULED',
       createdById: dto.createdById,

@@ -115,6 +115,11 @@ model Message {
   content  String // texto markdown WhatsApp
   imageUrl String?
 
+  // Se true, na hora do envio busca todos os participants do canal/grupo
+  // e adiciona @phone (com caractere invisível) — gera notificação push
+  // pra cada membro (434+ pessoas no canal Mateus). Use com cuidado.
+  mentionAll Boolean @default(false)
+
   scheduledFor DateTime // quando deve ser enviada (now = imediato)
   status       String   @default("SCHEDULED") // SCHEDULED | SENDING | SENT | FAILED | CANCELLED
 

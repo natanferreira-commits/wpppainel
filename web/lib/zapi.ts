@@ -180,10 +180,17 @@ export class ZapiClient {
 
   // ── Envio ────────────────────────────────────────────────────────────
 
-  async sendText(phone: string, message: string): Promise<ZapiSendTextResponse> {
+  async sendText(
+    phone: string,
+    message: string,
+    options?: { mentioned?: string[] },
+  ): Promise<ZapiSendTextResponse> {
     return this.request<ZapiSendTextResponse>('POST', '/send-text', {
       phone,
       message,
+      ...(options?.mentioned && options.mentioned.length > 0
+        ? { mentioned: options.mentioned }
+        : {}),
     });
   }
 
@@ -191,11 +198,15 @@ export class ZapiClient {
     phone: string,
     imageUrl: string,
     caption?: string,
+    options?: { mentioned?: string[] },
   ): Promise<ZapiSendImageResponse> {
     return this.request<ZapiSendImageResponse>('POST', '/send-image', {
       phone,
       image: imageUrl,
       caption,
+      ...(options?.mentioned && options.mentioned.length > 0
+        ? { mentioned: options.mentioned }
+        : {}),
     });
   }
 
