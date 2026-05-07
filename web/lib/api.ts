@@ -291,4 +291,12 @@ export const insights = {
       `/communities/${communityId}/insights${qs ? `?${qs}` : ''}`,
     );
   },
+  refreshMembers: (communityId: string) =>
+    request<{
+      ok: boolean;
+      community: { id: string; name: string };
+      before: number | null;
+      after: number;
+      delta: number | null;
+    }>(`/communities/${communityId}/refresh-members`, { method: 'POST' }),
 };

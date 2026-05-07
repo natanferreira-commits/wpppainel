@@ -4,12 +4,12 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   TrendingUp,
   TrendingDown,
-  Users,
   UserPlus,
   UserMinus,
   Flame,
   Activity,
   GitCompare,
+  RefreshCw,
 } from 'lucide-react';
 import {
   insights as insightsApi,
@@ -32,6 +32,8 @@ export default function InsightsPage() {
   const [data, setData] = useState<CommunityInsights | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [refreshFeedback, setRefreshFeedback] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -69,6 +71,36 @@ export default function InsightsPage() {
       .catch((err) => setError(err instanceof Error ? err.message : 'Erro'))
       .finally(() => setLoading(false));
   }, [selectedCommunityId, compareDays]);
+
+  // Força a Z-API a contar de novo e recarrega o insights.
+  // Usa quando o número parecer defasado (ex: rodou tráfego e quer ver
+  // o impacto na hora). Dispara um GET na Z-API por baixo dos panos.
+  async function handleRefreshMembers() {
+    if (!selectedCommunityId || refreshing) return;
+    setRefreshing(true);
+    setRefreshFeedback(null);
+    try {
+      const result = await insightsApi.refreshMembers(selectedCommunityId);
+      const deltaText =
+        result.delta === null
+          ? `${result.after} membros`
+          : result.delta === 0
+            ? `sem mudança · ${result.after} membros`
+            : `${result.delta > 0 ? '+' : ''}${result.delta} · agora ${result.after}`;
+      setRefreshFeedback(deltaText);
+      // Recarrega o insights pra refletir o novo membersCount no card
+      const fresh = await insightsApi.community(selectedCommunityId, { compareDays });
+      setData(fresh);
+      // Limpa o feedback depois de 5s
+      setTimeout(() => setRefreshFeedback(null), 5000);
+    } catch (err) {
+      setRefreshFeedback(
+        `Erro: ${err instanceof Error ? err.message : 'falha ao atualizar'}`,
+      );
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   if (error) {
     return (
@@ -121,6 +153,9 @@ export default function InsightsPage() {
           data={data}
           compareDays={compareDays}
           onChangeCompareDays={setCompareDays}
+          onRefreshMembers={handleRefreshMembers}
+          refreshing={refreshing}
+          refreshFeedback={refreshFeedback}
         />
       )}
     </div>
@@ -131,10 +166,16 @@ function InsightsContent({
   data,
   compareDays,
   onChangeCompareDays,
+  onRefreshMembers,
+  refreshing,
+  refreshFeedback,
 }: {
   data: CommunityInsights;
   compareDays: number;
   onChangeCompareDays: (n: number) => void;
+  onRefreshMembers: () => void;
+  refreshing: boolean;
+  refreshFeedback: string | null;
 }) {
   const growthIsPositive = data.summary.growth7dPct >= 0;
   const hasMetrics = data.growthSeries.length > 0;
@@ -154,11 +195,11 @@ function InsightsContent({
 
       {/* ── Cards principais (7d + tempo real) ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <Card
-          icon={<Users size={18} />}
-          label="Membros agora"
+        <MembersNowCard
           value={data.summary.membersNow.toLocaleString('pt-BR')}
-          sub="canal de anúncios"
+          onRefresh={onRefreshMembers}
+          refreshing={refreshing}
+          feedback={refreshFeedback}
         />
         <Card
           icon={growthIsPositive ? <TrendingUp size={18} /> : <TrendingDown size={18} />}
@@ -417,6 +458,47 @@ function InsightsContent({
         )}
       </section>
     </>
+  );
+}
+
+// Card especial pra "Membros agora" — tem botão de refresh manual,
+// que dispara um GET na Z-API e atualiza o membersCount no banco.
+// Útil quando o painel parece defasado e quer ver o número exato.
+function MembersNowCard({
+  value,
+  onRefresh,
+  refreshing,
+  feedback,
+}: {
+  value: string;
+  onRefresh: () => void;
+  refreshing: boolean;
+  feedback: string | null;
+}) {
+  return (
+    <div className="bg-slate-900 rounded-xl border border-slate-800 p-4">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs uppercase tracking-wide text-slate-500 font-medium">
+          Membros agora
+        </span>
+        <button
+          type="button"
+          onClick={onRefresh}
+          disabled={refreshing}
+          title="Atualizar agora (puxa contagem real da Z-API)"
+          className="text-slate-500 hover:text-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed transition"
+        >
+          <RefreshCw
+            size={14}
+            className={cn(refreshing && 'animate-spin text-emerald-400')}
+          />
+        </button>
+      </div>
+      <p className="text-2xl font-semibold text-slate-100">{value}</p>
+      <p className="text-xs text-slate-500 mt-1">
+        {feedback ?? 'canal de anúncios'}
+      </p>
+    </div>
   );
 }
 

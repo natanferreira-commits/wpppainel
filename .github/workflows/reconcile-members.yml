@@ -1,0 +1,36 @@
+name: Reconcile Members (contagem real Z-API)
+
+# Roda a cada 30min batendo em /api/cron/reconcile-members.
+# Mantém Community.membersCount alinhado com a Z-API caso algum
+# webhook de JOIN/LEFT tenha falhado.
+#
+# GitHub Actions é "best-effort" — pode atrasar até 10min em pico.
+# 30min é granularidade suficiente pra catch drift sem estourar
+# rate limits da Z-API.
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: reconcile-members
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Hit /api/cron/reconcile-members
+        env:
+          URL: https://wpppainel-web.vercel.app/api/cron/reconcile-members
+          CRON_TOKEN: ${{ secrets.CRON_TOKEN }}
+        run: |
+          response=$(curl -fsS -w "\nHTTP_CODE:%{http_code}" "$URL?token=$CRON_TOKEN")
+          echo "$response"
+          code=$(echo "$response" | tail -n1 | cut -d: -f2)
+          if [ "$code" != "200" ]; then
+            echo "::error::Reconcile falhou (HTTP $code)"
+            exit 1
+          fi

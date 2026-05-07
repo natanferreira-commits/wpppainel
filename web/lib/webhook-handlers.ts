@@ -102,6 +102,30 @@ export async function tryHandleGroupNotification(
         occurredAt,
       },
     });
+
+    // Bump membersCount em tempo real. Sem isso o card de Insights só
+    // atualiza no daily-snapshot (1x/dia) ou no sync manual.
+    // Reconcile periódico (/api/cron/reconcile-members) corrige drift
+    // caso algum webhook tenha falhado.
+    const delta = isLeft ? -1 : 1;
+    try {
+      await prisma.community.update({
+        where: { id: group.communityId },
+        data: { membersCount: { increment: delta } },
+      });
+      // Também atualiza o canal de anúncios (que é a fonte de verdade
+      // do número de membros — comunidade WhatsApp = canal de anúncios)
+      if (group.isAnnouncementChannel) {
+        await prisma.group.update({
+          where: { id: group.id },
+          data: { membersCount: { increment: delta } },
+        });
+      }
+    } catch (err) {
+      // Se falhar (community.membersCount null, p.ex.), não derruba o
+      // webhook. Reconcile vai consertar na próxima janela.
+      console.error('[webhook] failed to bump membersCount:', err);
+    }
   }
 
   return isLeft ? 'LEFT' : 'JOIN';
