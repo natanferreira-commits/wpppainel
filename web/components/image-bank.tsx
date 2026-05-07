@@ -114,36 +114,46 @@ export function ImageBank({ onSelect }: Props) {
       ) : (
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 mb-3">
           {presets.map((p) => (
-            <div
+            <button
               key={p.id}
-              className="relative group aspect-square rounded-lg overflow-hidden border border-slate-800 hover:border-emerald-500 transition cursor-pointer"
+              type="button"
+              onClick={() => onSelect(p.url)}
+              className="relative group aspect-square rounded-lg overflow-hidden border border-slate-800 hover:border-emerald-500 transition cursor-pointer block"
+              aria-label={`Selecionar imagem ${p.label ?? ''}`}
             >
               <img
                 src={p.url}
                 alt={p.label ?? 'preset'}
-                className="w-full h-full object-cover"
-                onClick={() => onSelect(p.url)}
+                className="w-full h-full object-cover pointer-events-none"
               />
-              {/* Overlay com label e delete */}
-              <div className="absolute inset-0 bg-slate-950/0 group-hover:bg-slate-950/60 transition flex items-end justify-between p-1.5 pointer-events-none group-hover:pointer-events-auto">
-                {p.label && (
-                  <span className="text-[10px] text-white truncate flex-1 mr-1 opacity-0 group-hover:opacity-100">
-                    {p.label}
-                  </span>
-                )}
-                <button
-                  type="button"
-                  onClick={(e) => {
+              {/* Label flutuante no rodapé (hover) */}
+              {p.label && (
+                <span className="absolute bottom-0 left-0 right-0 px-1.5 py-1 text-[10px] text-white bg-slate-950/70 truncate opacity-0 group-hover:opacity-100 transition pointer-events-none">
+                  {p.label}
+                </span>
+              )}
+              {/* Botão delete — em cima, NÃO captura click do card */}
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  handleDelete(p.id);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
                     e.stopPropagation();
+                    e.preventDefault();
                     handleDelete(p.id);
-                  }}
-                  className="opacity-0 group-hover:opacity-100 bg-red-500/80 hover:bg-red-500 text-white rounded p-1"
-                  aria-label="Remover do banco"
-                >
-                  <Trash2 size={10} />
-                </button>
-              </div>
-            </div>
+                  }
+                }}
+                className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 bg-red-500/90 hover:bg-red-500 text-white rounded p-1 transition cursor-pointer"
+                aria-label="Remover do banco"
+              >
+                <Trash2 size={10} />
+              </span>
+            </button>
           ))}
         </div>
       )}
