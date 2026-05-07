@@ -47,6 +47,7 @@ export default function NovaMensagemPage() {
   const [groupId, setGroupId] = useState<string>('');
   const [groupIds, setGroupIds] = useState<string[]>([]);
   const [content, setContent] = useState<string>(MESSAGE_TEMPLATE);
+  const [nickname, setNickname] = useState<string>('');
   const [imageUrl, setImageUrl] = useState<string>('');
   const [imageTab, setImageTab] = useState<ImageTab>('bank');
   const [mentionAll, setMentionAll] = useState<boolean>(false);
@@ -164,6 +165,7 @@ export default function NovaMensagemPage() {
         content,
         createdById: user.id,
         mentionAll,
+        ...(nickname.trim() ? { nickname: nickname.trim() } : {}),
         ...(imageUrl ? { imageUrl } : {}),
         ...(mode === 'scheduled' ? { scheduledFor: scheduledForDate.toISOString() } : {}),
         ...(destinationType === 'ANNOUNCEMENT_CHANNEL' && community
@@ -201,6 +203,7 @@ export default function NovaMensagemPage() {
 
       if (created.status !== 'FAILED') {
         setContent(MESSAGE_TEMPLATE);
+        setNickname('');
         setImageUrl('');
         setMentionAll(false);
       }
@@ -366,6 +369,25 @@ export default function NovaMensagemPage() {
 
           {/* ③ Conteúdo */}
           <Section number="③" title="Conteúdo">
+            {/* Apelido da tip — opcional, aparece no histórico */}
+            <div className="mb-3">
+              <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wide">
+                Apelido da tip <span className="text-slate-600 normal-case">(opcional)</span>
+              </label>
+              <input
+                type="text"
+                value={nickname}
+                onChange={(e) => setNickname(e.target.value)}
+                placeholder="ex: bilhete007, Brasil x Argentina"
+                maxLength={80}
+                className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+              />
+              <p className="text-xs text-slate-500 mt-1">
+                Aparece no Histórico no lugar do conteúdo, fica fácil identificar
+                pra marcar como Green/Red depois.
+              </p>
+            </div>
+
             <textarea
               value={content}
               onChange={(e) => setContent(e.target.value)}

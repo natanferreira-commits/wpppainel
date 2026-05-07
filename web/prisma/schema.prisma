@@ -115,6 +115,15 @@ model Message {
   content  String // texto markdown WhatsApp
   imageUrl String?
 
+  // Apelido curto pra identificar a tip no histórico/insights
+  // (ex: "bilhete007", "Brasil x Argentina"). Opcional — se não
+  // informado, histórico mostra preview do content.
+  nickname String?
+
+  // Resultado da tip pós-jogo. Operador edita pelo histórico.
+  // GREEN | RED | VOID | null (não definido)
+  result String?
+
   // Se true, na hora do envio busca todos os participants do canal/grupo
   // e adiciona @phone (com caractere invisível) — gera notificação push
   // pra cada membro (434+ pessoas no canal Mateus). Use com cuidado.

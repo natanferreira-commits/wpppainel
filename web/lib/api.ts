@@ -163,16 +163,21 @@ export type CreateMessageInput = {
   groupIds?: string[];
   content: string;
   imageUrl?: string;
+  nickname?: string;
   mentionAll?: boolean;
   scheduledFor?: string; // ISO datetime
   createdById: string;
 };
+
+export type TipResult = 'GREEN' | 'RED' | 'VOID' | null;
 
 export type Message = {
   id: string;
   destinationType: DestinationType;
   content: string;
   imageUrl: string | null;
+  nickname: string | null;
+  result: TipResult;
   mentionAll: boolean;
   scheduledFor: string;
   status: string;
@@ -214,6 +219,8 @@ export const messages = {
       scheduledFor?: string;
       imageUrl?: string | null;
       mentionAll?: boolean;
+      nickname?: string | null;
+      result?: TipResult;
     },
   ) =>
     request<Message>(`/messages/${id}`, {

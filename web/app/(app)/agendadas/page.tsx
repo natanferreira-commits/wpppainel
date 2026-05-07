@@ -226,6 +226,7 @@ function EditModal({
   const initialDate = new Date(message.scheduledFor);
 
   const [content, setContent] = useState(message.content);
+  const [nickname, setNickname] = useState(message.nickname ?? '');
   const [imageUrl, setImageUrl] = useState(message.imageUrl ?? '');
   const [imageTab, setImageTab] = useState<ImageTab>('bank');
   const [mentionAll, setMentionAll] = useState<boolean>(message.mentionAll);
@@ -270,6 +271,7 @@ function EditModal({
         // null se removida, string nova se trocou, manter atual se não mexeu
         imageUrl: imageUrl ? imageUrl : message.imageUrl ? null : undefined,
         mentionAll,
+        nickname: nickname.trim() || null,
       });
       onSaved();
     } catch (err) {
@@ -304,6 +306,21 @@ function EditModal({
 
         {/* Body */}
         <div className="p-6 space-y-4">
+          {/* Apelido */}
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wide">
+              Apelido <span className="text-slate-600 normal-case">(opcional)</span>
+            </label>
+            <input
+              type="text"
+              value={nickname}
+              onChange={(e) => setNickname(e.target.value)}
+              placeholder="ex: bilhete007"
+              maxLength={80}
+              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+            />
+          </div>
+
           {/* Conteúdo */}
           <div>
             <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wide">
