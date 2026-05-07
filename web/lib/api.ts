@@ -48,6 +48,34 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+// ─── Image Presets (banco de imagens reutilizáveis) ───
+export type PresetCategory = 'AUMENTADAS' | 'NBA' | 'BINGOS';
+
+export type ImagePreset = {
+  id: string;
+  category: PresetCategory;
+  url: string;
+  label: string | null;
+  sortOrder: number;
+  createdAt: string;
+};
+
+export const imagePresets = {
+  list: (category?: PresetCategory) => {
+    const qs = category ? `?category=${category}` : '';
+    return request<{ categories: PresetCategory[]; presets: ImagePreset[] }>(
+      `/image-presets${qs}`,
+    );
+  },
+  create: (input: { category: PresetCategory; url: string; label?: string }) =>
+    request<ImagePreset>('/image-presets', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
+  delete: (id: string) =>
+    request<{ ok: boolean }>(`/image-presets/${id}`, { method: 'DELETE' }),
+};
+
 // ─── Upload de imagem (Vercel Blob) ───
 export const uploads = {
   image: async (file: File): Promise<{ url: string; size: number }> => {

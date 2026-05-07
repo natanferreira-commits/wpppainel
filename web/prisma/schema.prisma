@@ -183,6 +183,23 @@ model CommunityMetric {
 // última mensagem SENT antes do evento — pra correlacionar saídas com
 // "tip queimadora". Phone armazenado como hash pra LGPD.
 
+// ─── ImagePreset ──────────────────────────────────────────────────────────
+// Banco de imagens reutilizáveis pra anexar em mensagens. Operador escolhe
+// uma do banco em vez de subir nova toda vez.
+//
+// category: AUMENTADAS | NBA | BINGOS  (validação em runtime via Zod)
+
+model ImagePreset {
+  id        String   @id @default(cuid())
+  category  String // AUMENTADAS | NBA | BINGOS
+  url       String // URL pública (Vercel Blob)
+  label     String? // legenda opcional pra busca
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([category, sortOrder])
+}
+
 model MemberEvent {
   id          String   @id @default(cuid())
   communityId String

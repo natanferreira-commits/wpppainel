@@ -17,7 +17,10 @@ import {
   uploads as uploadsApi,
   type Message,
 } from '@/lib/api';
+import { ImageBank } from '@/components/image-bank';
 import { cn } from '@/lib/cn';
+
+type ImageTab = 'bank' | 'upload';
 
 export default function AgendadasPage() {
   const [items, setItems] = useState<Message[]>([]);
@@ -224,6 +227,7 @@ function EditModal({
 
   const [content, setContent] = useState(message.content);
   const [imageUrl, setImageUrl] = useState(message.imageUrl ?? '');
+  const [imageTab, setImageTab] = useState<ImageTab>('bank');
   const [scheduleDate, setScheduleDate] = useState(
     initialDate.toISOString().slice(0, 10),
   );
@@ -336,39 +340,74 @@ function EditModal({
                 </button>
               </div>
             ) : (
-              <label
-                htmlFor="edit-image-upload"
-                className={cn(
-                  'flex flex-col items-center justify-center gap-2 w-full rounded-lg border-2 border-dashed py-6 cursor-pointer transition',
-                  uploading
-                    ? 'border-emerald-500/50 bg-emerald-500/5'
-                    : 'border-slate-700 bg-slate-900/50 hover:border-slate-600',
-                )}
-              >
-                {uploading ? (
-                  <>
-                    <Loader2 size={20} className="text-emerald-400 animate-spin" />
-                    <span className="text-sm text-slate-400">Enviando…</span>
-                  </>
+              <>
+                <div className="flex gap-1 mb-3 border-b border-slate-800">
+                  <button
+                    type="button"
+                    onClick={() => setImageTab('bank')}
+                    className={cn(
+                      'px-3 py-1.5 text-xs font-medium transition border-b-2 -mb-px',
+                      imageTab === 'bank'
+                        ? 'border-emerald-500 text-emerald-400'
+                        : 'border-transparent text-slate-400 hover:text-slate-200',
+                    )}
+                  >
+                    Banco de imagens
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setImageTab('upload')}
+                    className={cn(
+                      'px-3 py-1.5 text-xs font-medium transition border-b-2 -mb-px',
+                      imageTab === 'upload'
+                        ? 'border-emerald-500 text-emerald-400'
+                        : 'border-transparent text-slate-400 hover:text-slate-200',
+                    )}
+                  >
+                    Subir nova
+                  </button>
+                </div>
+
+                {imageTab === 'bank' ? (
+                  <ImageBank onSelect={(url) => setImageUrl(url)} />
                 ) : (
                   <>
-                    <Upload size={20} className="text-slate-500" />
-                    <span className="text-sm text-slate-300">
-                      Clique pra subir imagem (JPG/PNG, até 5MB)
-                    </span>
+                    <label
+                      htmlFor="edit-image-upload"
+                      className={cn(
+                        'flex flex-col items-center justify-center gap-2 w-full rounded-lg border-2 border-dashed py-6 cursor-pointer transition',
+                        uploading
+                          ? 'border-emerald-500/50 bg-emerald-500/5'
+                          : 'border-slate-700 bg-slate-900/50 hover:border-slate-600',
+                      )}
+                    >
+                      {uploading ? (
+                        <>
+                          <Loader2 size={20} className="text-emerald-400 animate-spin" />
+                          <span className="text-sm text-slate-400">Enviando…</span>
+                        </>
+                      ) : (
+                        <>
+                          <Upload size={20} className="text-slate-500" />
+                          <span className="text-sm text-slate-300">
+                            Clique pra subir imagem (JPG/PNG, até 5MB)
+                          </span>
+                        </>
+                      )}
+                    </label>
+                    <input
+                      ref={fileInputRef}
+                      id="edit-image-upload"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFileSelected}
+                      disabled={uploading}
+                      className="hidden"
+                    />
                   </>
                 )}
-              </label>
+              </>
             )}
-            <input
-              ref={fileInputRef}
-              id="edit-image-upload"
-              type="file"
-              accept="image/*"
-              onChange={handleFileSelected}
-              disabled={uploading}
-              className="hidden"
-            />
           </div>
 
           {/* Horário */}

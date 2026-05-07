@@ -22,8 +22,11 @@ import {
   type DestinationType,
 } from '@/lib/api';
 import { WhatsAppPreview } from '@/components/whatsapp-preview';
+import { ImageBank } from '@/components/image-bank';
 import { MESSAGE_TEMPLATE } from '@/lib/templates';
 import { cn } from '@/lib/cn';
+
+type ImageTab = 'bank' | 'upload';
 
 type Mode = 'now' | 'scheduled';
 
@@ -45,6 +48,7 @@ export default function NovaMensagemPage() {
   const [groupIds, setGroupIds] = useState<string[]>([]);
   const [content, setContent] = useState<string>(MESSAGE_TEMPLATE);
   const [imageUrl, setImageUrl] = useState<string>('');
+  const [imageTab, setImageTab] = useState<ImageTab>('bank');
   const [uploading, setUploading] = useState(false);
   const [mode, setMode] = useState<Mode>('scheduled');
   const [scheduleDate, setScheduleDate] = useState<string>(defaultTomorrow().date);
@@ -385,7 +389,7 @@ export default function NovaMensagemPage() {
               <span className="ml-auto">{content.length} / 4096</span>
             </div>
 
-            {/* Upload de imagem */}
+            {/* Imagem (opcional) — banco ou upload novo */}
             <div className="mt-4 pt-4 border-t border-slate-800">
               <label className="block text-xs font-medium text-slate-400 mb-2 uppercase tracking-wide">
                 Imagem (opcional)
@@ -408,42 +412,78 @@ export default function NovaMensagemPage() {
                   </button>
                 </div>
               ) : (
-                <label
-                  htmlFor="image-upload"
-                  className={cn(
-                    'flex flex-col items-center justify-center gap-2 w-full rounded-lg border-2 border-dashed py-8 cursor-pointer transition',
-                    uploading
-                      ? 'border-emerald-500/50 bg-emerald-500/5'
-                      : 'border-slate-700 bg-slate-900/50 hover:border-slate-600 hover:bg-slate-900',
-                  )}
-                >
-                  {uploading ? (
-                    <>
-                      <Loader2 size={24} className="text-emerald-400 animate-spin" />
-                      <span className="text-sm text-slate-400">Enviando…</span>
-                    </>
+                <>
+                  {/* Tabs Banco / Subir novo */}
+                  <div className="flex gap-1 mb-3 border-b border-slate-800">
+                    <button
+                      type="button"
+                      onClick={() => setImageTab('bank')}
+                      className={cn(
+                        'px-3 py-1.5 text-xs font-medium transition border-b-2 -mb-px',
+                        imageTab === 'bank'
+                          ? 'border-emerald-500 text-emerald-400'
+                          : 'border-transparent text-slate-400 hover:text-slate-200',
+                      )}
+                    >
+                      Banco de imagens
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setImageTab('upload')}
+                      className={cn(
+                        'px-3 py-1.5 text-xs font-medium transition border-b-2 -mb-px',
+                        imageTab === 'upload'
+                          ? 'border-emerald-500 text-emerald-400'
+                          : 'border-transparent text-slate-400 hover:text-slate-200',
+                      )}
+                    >
+                      Subir nova
+                    </button>
+                  </div>
+
+                  {imageTab === 'bank' ? (
+                    <ImageBank onSelect={(url) => setImageUrl(url)} />
                   ) : (
                     <>
-                      <Upload size={24} className="text-slate-500" />
-                      <span className="text-sm text-slate-300">
-                        Clique pra subir imagem
-                      </span>
-                      <span className="text-xs text-slate-500">
-                        JPG, PNG, WebP ou GIF · até 5MB
-                      </span>
+                      <label
+                        htmlFor="image-upload"
+                        className={cn(
+                          'flex flex-col items-center justify-center gap-2 w-full rounded-lg border-2 border-dashed py-8 cursor-pointer transition',
+                          uploading
+                            ? 'border-emerald-500/50 bg-emerald-500/5'
+                            : 'border-slate-700 bg-slate-900/50 hover:border-slate-600 hover:bg-slate-900',
+                        )}
+                      >
+                        {uploading ? (
+                          <>
+                            <Loader2 size={24} className="text-emerald-400 animate-spin" />
+                            <span className="text-sm text-slate-400">Enviando…</span>
+                          </>
+                        ) : (
+                          <>
+                            <Upload size={24} className="text-slate-500" />
+                            <span className="text-sm text-slate-300">
+                              Clique pra subir imagem
+                            </span>
+                            <span className="text-xs text-slate-500">
+                              JPG, PNG, WebP ou GIF · até 5MB
+                            </span>
+                          </>
+                        )}
+                      </label>
+                      <input
+                        ref={fileInputRef}
+                        id="image-upload"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileSelected}
+                        disabled={uploading}
+                        className="hidden"
+                      />
                     </>
                   )}
-                </label>
+                </>
               )}
-              <input
-                ref={fileInputRef}
-                id="image-upload"
-                type="file"
-                accept="image/*"
-                onChange={handleFileSelected}
-                disabled={uploading}
-                className="hidden"
-              />
             </div>
           </Section>
 
