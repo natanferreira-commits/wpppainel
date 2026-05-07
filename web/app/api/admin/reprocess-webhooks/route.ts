@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { tryHandleGroupNotification } from '../../webhooks/zapi/route';
+import { tryHandleGroupNotification } from '@/lib/webhook-handlers';
 
 export const dynamic = 'force-dynamic';
 
