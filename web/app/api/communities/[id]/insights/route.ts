@@ -64,7 +64,10 @@ export async function GET(req: NextRequest, ctx: { params: { id: string } }) {
   const recent7d = countByType(eventsInWindow(days7, now));
   const latest = metrics[metrics.length - 1];
   const sevenDaysAgoMetric = metrics.find((m) => m.date >= days7);
-  const membersNow = latest?.membersCount ?? community.membersCount ?? 0;
+  // Prioridade: community.membersCount (tempo real, atualizado por
+  // webhook bump + reconcile) > snapshot diário (atrasado, só pra fallback).
+  // Antes estava invertido — snapshot ganhava e o card ficava parado.
+  const membersNow = community.membersCount ?? latest?.membersCount ?? 0;
   const members7dAgo = sevenDaysAgoMetric?.membersCount ?? membersNow;
   const growth7d = membersNow - members7dAgo;
   const growth7dPct = members7dAgo > 0 ? (growth7d / members7dAgo) * 100 : 0;

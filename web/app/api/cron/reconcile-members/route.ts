@@ -99,6 +99,14 @@ export async function GET(req: NextRequest) {
         where: { id: channel.id },
         data: { membersCount: realCount, cachedAt: new Date() },
       });
+      // Atualiza snapshot do dia (idempotente — chave é communityId+date)
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      await prisma.communityMetric.upsert({
+        where: { communityId_date: { communityId: community.id, date: today } },
+        update: { membersCount: realCount },
+        create: { communityId: community.id, date: today, membersCount: realCount },
+      });
 
       stats.reconciled++;
       results.push({

@@ -55,6 +55,15 @@ export async function POST(_req: Request, ctx: { params: { id: string } }) {
       where: { id: channel.id },
       data: { membersCount: realCount, cachedAt: new Date() },
     });
+    // Atualiza o snapshot do dia também (pra gráfico de crescimento
+    // refletir o estado atual sem precisar esperar a meia-noite).
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    await prisma.communityMetric.upsert({
+      where: { communityId_date: { communityId: community.id, date: today } },
+      update: { membersCount: realCount },
+      create: { communityId: community.id, date: today, membersCount: realCount },
+    });
 
     return NextResponse.json({
       ok: true,
