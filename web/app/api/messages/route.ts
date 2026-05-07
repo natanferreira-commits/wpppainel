@@ -29,7 +29,9 @@ const CreateMessageSchema = z
     groupIds: z.array(z.string()).optional(),
     content: z.string().min(1).max(4096),
     imageUrl: z.string().url().optional(),
-    nickname: z.string().max(80).optional(),
+    // Apelido é obrigatório a partir da v2 — sem ele o histórico fica
+    // ilegível e impossível marcar resultado depois.
+    nickname: z.string().min(1, 'Apelido é obrigatório').max(80),
     mentionAll: z.boolean().optional(),
     scheduledFor: z.string().datetime().optional(),
     createdById: z.string(),

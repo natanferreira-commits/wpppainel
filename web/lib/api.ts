@@ -163,7 +163,8 @@ export type CreateMessageInput = {
   groupIds?: string[];
   content: string;
   imageUrl?: string;
-  nickname?: string;
+  // Apelido é obrigatório a partir da v2 — sem ele histórico fica ilegível
+  nickname: string;
   mentionAll?: boolean;
   scheduledFor?: string; // ISO datetime
   createdById: string;

@@ -134,7 +134,6 @@ export default function HistoricoPage() {
               {items.map((m) => {
                 const style = STATUS_STYLE[m.status] ?? STATUS_STYLE.SCHEDULED;
                 const isSent = m.status === 'SENT';
-                const fallback = m.content.replace(/\n+/g, ' ').slice(0, 60);
                 return (
                   <tr
                     key={m.id}
@@ -176,8 +175,11 @@ export default function HistoricoPage() {
                       {m.nickname ? (
                         <p className="font-medium truncate">{m.nickname}</p>
                       ) : (
-                        <p className="truncate text-slate-500 italic" title={m.content}>
-                          {fallback || '—'}
+                        <p
+                          className="text-slate-600 italic text-xs"
+                          title={m.content.replace(/\n+/g, ' ').slice(0, 200)}
+                        >
+                          — sem apelido
                         </p>
                       )}
                     </td>
