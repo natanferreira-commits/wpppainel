@@ -57,17 +57,21 @@ export async function dispatchMessage(
     for (const target of message.targets) {
       const phone = target.group.whatsappId;
 
-      // mentionAll desativado em runtime até descobrirmos formato Z-API
-      // que não exibe os @phones no corpo da mensagem. Mantemos a flag
-      // no schema/API mas o sender ignora.
-      const finalContent = message.content;
-      const mentioned: string[] = [];
+      // mentionAll usa o comando NATIVO @todos do WhatsApp (lançado 2025).
+      // WhatsApp processa "@todos" como link único e notifica todos os
+      // membros do grupo/canal. Não precisa de array mentioned[].
+      //
+      // Limites do @todos:
+      //   - Em grupos grandes (>128 membros), só admin pode usar
+      //   - Conta da Dupla precisa ser admin do canal MATEUS CAUMO #1
+      //   - Algumas contas ainda não têm a feature (rollout gradual)
+      const finalContent = message.mentionAll
+        ? `@todos ${message.content}`
+        : message.content;
 
       const resp = message.imageUrl
-        ? await zapi.sendImage(phone, message.imageUrl, finalContent, {
-            mentioned,
-          })
-        : await zapi.sendText(phone, finalContent, { mentioned });
+        ? await zapi.sendImage(phone, message.imageUrl, finalContent)
+        : await zapi.sendText(phone, finalContent);
 
       const zapiId = resp.messageId ?? resp.zaapId ?? resp.id ?? null;
 
