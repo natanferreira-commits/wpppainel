@@ -183,6 +183,23 @@ model CommunityMetric {
 // última mensagem SENT antes do evento — pra correlacionar saídas com
 // "tip queimadora". Phone armazenado como hash pra LGPD.
 
+// ─── WebhookEvent ─────────────────────────────────────────────────────────
+// Log bruto de todo evento que chega do webhook Z-API.
+// Usado pra debug: descobrir formato real dos eventos de JOIN/LEFT,
+// reprocessar eventos perdidos, audit trail.
+
+model WebhookEvent {
+  id          String   @id @default(cuid())
+  receivedAt  DateTime @default(now())
+  eventType   String? // body.type ou body.event
+  payload     String // JSON.stringify do body inteiro (truncado a ~5KB)
+  processedAs String? // JOIN | LEFT | STATUS | CONNECTION | IGNORED
+  errorMsg    String?
+
+  @@index([receivedAt])
+  @@index([processedAs])
+}
+
 // ─── ImagePreset ──────────────────────────────────────────────────────────
 // Banco de imagens reutilizáveis pra anexar em mensagens. Operador escolhe
 // uma do banco em vez de subir nova toda vez.
