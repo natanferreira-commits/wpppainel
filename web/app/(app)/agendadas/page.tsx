@@ -262,10 +262,6 @@ function EditModal({
   }
 
   async function handleSave() {
-    if (!nickname.trim()) {
-      setError('Apelido é obrigatório');
-      return;
-    }
     setSaving(true);
     setError(null);
     try {
@@ -275,7 +271,10 @@ function EditModal({
         // null se removida, string nova se trocou, manter atual se não mexeu
         imageUrl: imageUrl ? imageUrl : message.imageUrl ? null : undefined,
         mentionAll,
-        nickname: nickname.trim(),
+        // Edição: aceita vazio (mensagens legadas podem não ter apelido).
+        // Mas se tem texto, normaliza com trim. Se vazio, manda null
+        // pra deixar o backend manter o estado atual coerente.
+        nickname: nickname.trim() || null,
       });
       onSaved();
     } catch (err) {
@@ -321,9 +320,19 @@ function EditModal({
               onChange={(e) => setNickname(e.target.value)}
               placeholder="ex: bilhete007"
               maxLength={80}
-              required
-              className="w-full rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+              className={cn(
+                'w-full rounded-lg border bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:ring-1',
+                nickname.trim()
+                  ? 'border-slate-700 focus:border-emerald-500 focus:ring-emerald-500'
+                  : 'border-amber-500/40 focus:border-amber-500 focus:ring-amber-500',
+              )}
             />
+            {!nickname.trim() && (
+              <p className="text-xs text-amber-400/80 mt-1">
+                ⚠️ Sem apelido a tip fica difícil de identificar no histórico.
+                Recomendado preencher antes de salvar.
+              </p>
+            )}
           </div>
 
           {/* Conteúdo */}
@@ -481,7 +490,7 @@ function EditModal({
           <button
             type="button"
             onClick={handleSave}
-            disabled={saving || uploading || !content.trim() || !nickname.trim()}
+            disabled={saving || uploading || !content.trim()}
             className="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-700 disabled:text-slate-500 text-white text-sm font-medium"
           >
             {saving ? 'Salvando…' : 'Salvar alterações'}
