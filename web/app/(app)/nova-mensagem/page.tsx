@@ -489,33 +489,7 @@ export default function NovaMensagemPage() {
               )}
             </div>
 
-            {/* Mencionar todos — usa o comando @todos nativo do WhatsApp */}
-            <div className="mt-4 pt-4 border-t border-slate-800">
-              <label className="flex items-start gap-3 cursor-pointer group">
-                <input
-                  type="checkbox"
-                  checked={mentionAll}
-                  onChange={(e) => setMentionAll(e.target.checked)}
-                  className="mt-0.5 rounded border-slate-600 bg-slate-800 text-emerald-500"
-                />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-slate-200">
-                    Mencionar todos (<code className="bg-slate-800 px-1 rounded text-emerald-400">@todos</code>)
-                  </p>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    {mentionAll ? (
-                      <span className="text-amber-300">
-                        ⚠️ Adiciona "@todos" no início da mensagem. Notifica
-                        TODOS os membros (mesmo silenciados em alguns casos).
-                        A conta precisa ser admin do canal/grupo.
-                      </span>
-                    ) : (
-                      'Sem isso, mensagem chega normal (só notifica quem não silenciou).'
-                    )}
-                  </p>
-                </div>
-              </label>
-            </div>
+            {/* Mencionar todos — desativado até migrarmos pra API oficial */}
           </Section>
 
           {/* ④ Quando */}
