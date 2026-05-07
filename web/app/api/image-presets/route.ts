@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
+import { PRESET_CATEGORIES } from '@/lib/image-categories';
 import { fromZodError } from '../_helpers/errors';
 
 export const dynamic = 'force-dynamic';
-
-// Categorias hardcoded — ajustar aqui quando criar nova categoria
-export const PRESET_CATEGORIES = ['AUMENTADAS', 'NBA', 'BINGOS', 'SIMPLES'] as const;
-type PresetCategory = (typeof PRESET_CATEGORIES)[number];
 
 const CategorySchema = z.enum(PRESET_CATEGORIES);
 
@@ -33,7 +30,6 @@ export async function GET(req: NextRequest) {
 }
 
 // POST /api/image-presets
-//   body: { category: 'NBA', url: 'https://...', label?: '...' }
 const CreateSchema = z.object({
   category: CategorySchema,
   url: z.string().url(),
