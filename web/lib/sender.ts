@@ -57,31 +57,11 @@ export async function dispatchMessage(
     for (const target of message.targets) {
       const phone = target.group.whatsappId;
 
-      // Se mentionAll = true, busca participants do grupo e expande
-      // o conteúdo com @phones (precedidos por LRM caractere invisível
-      // pra esconder visualmente). Z-API processa as mentions e gera
-      // notificação push pra cada um.
-      let finalContent = message.content;
-      let mentioned: string[] = [];
-      if (message.mentionAll) {
-        try {
-          const meta = await zapi.getGroupMetadata(phone);
-          mentioned = (meta?.participants ?? [])
-            .map((p) => p.phone)
-            .filter((p): p is string => typeof p === 'string' && p.length > 0);
-          if (mentioned.length > 0) {
-            // ‎ = LEFT-TO-RIGHT MARK (zero-width) — esconde a linha
-            // de mentions visualmente em muitos clientes WhatsApp
-            const mentionLine =
-              '‎' + mentioned.map((p) => `@${p}`).join(' ');
-            finalContent = `${message.content}\n${mentionLine}`;
-          }
-        } catch {
-          // Se falhar buscar participants, segue sem mentions
-          mentioned = [];
-          finalContent = message.content;
-        }
-      }
+      // mentionAll desativado em runtime até descobrirmos formato Z-API
+      // que não exibe os @phones no corpo da mensagem. Mantemos a flag
+      // no schema/API mas o sender ignora.
+      const finalContent = message.content;
+      const mentioned: string[] = [];
 
       const resp = message.imageUrl
         ? await zapi.sendImage(phone, message.imageUrl, finalContent, {
