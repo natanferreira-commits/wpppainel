@@ -6,11 +6,6 @@ export const dynamic = 'force-dynamic';
 
 // POST /api/webhooks/zapi
 // Recebe eventos da Z-API. SEMPRE retorna 200 (Z-API não retenta).
-//
-// Estratégia:
-//   1. Loga TUDO em WebhookEvent (debug + audit)
-//   2. Tenta classificar e processar
-//   3. Marca processedAs no WebhookEvent
 
 const phoneHash = (phone: string) =>
   createHash('sha256').update(phone).digest('hex').slice(0, 16);
@@ -23,7 +18,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, error: 'invalid json' }, { status: 400 });
   }
 
-  // 1) Salva log bruto SEMPRE (mesmo se errar processamento)
+  // 1) Salva log bruto SEMPRE
   let logId: string | null = null;
   try {
     const log = await prisma.webhookEvent.create({
@@ -37,23 +32,25 @@ export async function POST(req: NextRequest) {
     console.error('[zapi webhook] failed to log:', err);
   }
 
-  // 2) Classifica e processa
+  // 2) Classifica e processa — ORDEM IMPORTA:
+  //    notification de grupo PRIMEIRO (porque ReceivedCallback de
+  //    notification tem body.status mas não é status de mensagem nossa)
   let processedAs: string | null = null;
   let errorMsg: string | null = null;
 
   try {
     const eventType: string = body.type ?? body.event ?? '';
+    const notification: string = (body.notification ?? '').toString();
 
-    // Eventos de status de mensagem (delivered/read/failed)
+    // 1ª prioridade: notification de grupo (entrada/saída de membro)
     if (
-      eventType === 'MessageStatusCallback' ||
-      eventType === 'DeliveryCallback' ||
-      (typeof body.status === 'string' && (body.ids || body.messageId))
+      notification &&
+      /GROUP_PARTICIPANT|notification|LEAVE|JOIN|REMOVE|ADD|INVITE/i.test(notification)
     ) {
-      await handleMessageStatus(body);
-      processedAs = 'STATUS';
+      const result = await tryHandleGroupNotification(body);
+      processedAs = result ?? 'IGNORED';
     }
-    // Conexão / desconexão
+    // 2ª: conexão / desconexão
     else if (eventType === 'DisconnectedCallback' || body.disconnected === true) {
       await handleConnectionChange(body, 'DISCONNECTED');
       processedAs = 'CONNECTION';
@@ -61,18 +58,22 @@ export async function POST(req: NextRequest) {
       await handleConnectionChange(body, 'CONNECTED');
       processedAs = 'CONNECTION';
     }
-    // Notification de grupo (entrada/saída de membro)
-    else {
-      const result = await tryHandleGroupNotification(body);
-      if (result) processedAs = result;
-      else processedAs = 'IGNORED';
+    // 3ª: status de mensagem
+    else if (
+      eventType === 'MessageStatusCallback' ||
+      eventType === 'DeliveryCallback' ||
+      (typeof body.status === 'string' && (body.ids || body.messageId))
+    ) {
+      await handleMessageStatus(body);
+      processedAs = 'STATUS';
+    } else {
+      processedAs = 'IGNORED';
     }
   } catch (err) {
     errorMsg = err instanceof Error ? err.message : String(err);
     console.error('[zapi webhook] error:', err);
   }
 
-  // 3) Atualiza log com resultado
   if (logId) {
     try {
       await prisma.webhookEvent.update({
@@ -97,10 +98,8 @@ async function handleMessageStatus(body: any) {
       : body.zaapId
         ? [body.zaapId]
         : [];
-
   if (ids.length === 0) return;
   const newStatus = body.status?.toUpperCase();
-
   if (newStatus === 'FAILED') {
     await prisma.messageTarget.updateMany({
       where: { zapiMessageId: { in: ids } },
@@ -112,7 +111,6 @@ async function handleMessageStatus(body: any) {
 async function handleConnectionChange(body: any, status: 'CONNECTED' | 'DISCONNECTED') {
   const zapiInstanceId: string | undefined = body.instanceId;
   if (!zapiInstanceId) return;
-
   await prisma.instance.updateMany({
     where: { zapiInstanceId },
     data: {
@@ -124,46 +122,37 @@ async function handleConnectionChange(body: any, status: 'CONNECTED' | 'DISCONNE
 
 /**
  * Tenta detectar e processar eventos de entrada/saída em grupo.
- * Retorna 'JOIN' | 'LEFT' | null se não conseguir classificar.
+ * Z-API ReceivedCallback com notification do tipo GROUP_PARTICIPANT_*:
+ *   - GROUP_PARTICIPANT_INVITE / ADD  → JOIN
+ *   - GROUP_PARTICIPANT_LEAVE / REMOVE → LEFT
+ *   - GROUP_PARTICIPANT_PROMOTE / DEMOTE → ignorados (admin role change)
  */
-async function tryHandleGroupNotification(body: any): Promise<string | null> {
-  // Junta todos os campos textuais que podem indicar tipo do evento
-  const candidates = [
-    body.notification,
-    body.notificationType,
-    body.notificationParameters,
-    body.subtype,
-    body.messageType,
-    body.event,
-    body.type,
-    body.text,
-    body.message?.text,
-    body.text?.message,
-  ];
+export async function tryHandleGroupNotification(body: any): Promise<string | null> {
+  const notif = (body.notification ?? '').toString().toUpperCase();
+  if (!notif) return null;
 
-  const combined = candidates
-    .filter((v) => typeof v === 'string')
-    .join(' ')
-    .toLowerCase();
+  const isJoin = /(GROUP_PARTICIPANT_INVITE|GROUP_PARTICIPANT_ADD|JOINED?|ENTROU|ADICIONADO|NEW_MEMBER)/i.test(
+    notif,
+  );
+  const isLeft = /(GROUP_PARTICIPANT_LEAVE|GROUP_PARTICIPANT_REMOVE|REMOVED?|LEFT|SAIU|EXPULSO|KICKED)/i.test(
+    notif,
+  );
 
-  if (!combined && !body.isGroup) return null;
+  if (!isJoin && !isLeft) return null;
 
-  // Regex bem permissivo — cobre variações de nomenclatura da Z-API e do
-  // próprio WhatsApp (pt/en, system messages, group_notif types)
-  const leftPatterns = /\b(removed?|left|leave|saiu|removido|exit|kicked|expulsou|expelled|left_group|removed_from_group)\b/;
-  const joinPatterns = /\b(added?|join(ed)?|entrou|adicionado|added_to_group|invited|invite|joined_group|new_member)\b/;
-
-  const isLeft = leftPatterns.test(combined);
-  const isJoin = joinPatterns.test(combined);
-
-  if (!isLeft && !isJoin) return null;
-
-  // Identificação do membro afetado — varia muito entre versões
-  const affectedPhone: string | undefined =
+  // Membro afetado vem em notificationParameters (array) na Z-API:
+  //   "notificationParameters": ["5511999999999@c.us"]
+  // ou em participantPhone, author, etc
+  const params = body.notificationParameters;
+  let affectedPhone: string | undefined;
+  if (Array.isArray(params) && params.length > 0) {
+    affectedPhone = String(params[0]).replace(/@c\.us$|@s\.whatsapp\.net$/i, '');
+  }
+  affectedPhone =
+    affectedPhone ??
     body.participantPhone ??
     body.notificationPhone ??
-    body.author ??
-    (body.fromMe === false ? body.phone : undefined);
+    body.author;
 
   if (!affectedPhone) return null;
 
@@ -189,16 +178,39 @@ async function tryHandleGroupNotification(body: any): Promise<string | null> {
     orderBy: { sentAt: 'desc' },
   });
 
-  await prisma.memberEvent.create({
-    data: {
+  // Idempotência: evita duplicar se reprocessar o mesmo webhook
+  const occurredAt = body.momment
+    ? new Date(body.momment)
+    : body.timestamp
+      ? new Date(typeof body.timestamp === 'number' ? body.timestamp * 1000 : body.timestamp)
+      : new Date();
+
+  const phash = phoneHash(affectedPhone);
+  const existing = await prisma.memberEvent.findFirst({
+    where: {
       communityId: group.communityId,
       groupId: group.id,
       type: isLeft ? 'LEFT' : 'JOIN',
-      phoneHash: phoneHash(affectedPhone),
-      messageId: lastMessage?.id,
-      occurredAt: new Date(),
+      phoneHash: phash,
+      occurredAt: {
+        gte: new Date(occurredAt.getTime() - 5000),
+        lte: new Date(occurredAt.getTime() + 5000),
+      },
     },
   });
+
+  if (!existing) {
+    await prisma.memberEvent.create({
+      data: {
+        communityId: group.communityId,
+        groupId: group.id,
+        type: isLeft ? 'LEFT' : 'JOIN',
+        phoneHash: phash,
+        messageId: lastMessage?.id,
+        occurredAt,
+      },
+    });
+  }
 
   return isLeft ? 'LEFT' : 'JOIN';
 }
