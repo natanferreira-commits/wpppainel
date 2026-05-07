@@ -49,7 +49,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 // ─── Image Presets (banco de imagens reutilizáveis) ───
-export type PresetCategory = 'AUMENTADAS' | 'NBA' | 'BINGOS';
+export type PresetCategory = 'AUMENTADAS' | 'NBA' | 'BINGOS' | 'SIMPLES';
 
 export type ImagePreset = {
   id: string;

@@ -6,7 +6,7 @@ import { fromZodError } from '../_helpers/errors';
 export const dynamic = 'force-dynamic';
 
 // Categorias hardcoded — ajustar aqui quando criar nova categoria
-export const PRESET_CATEGORIES = ['AUMENTADAS', 'NBA', 'BINGOS'] as const;
+export const PRESET_CATEGORIES = ['AUMENTADAS', 'NBA', 'BINGOS', 'SIMPLES'] as const;
 type PresetCategory = (typeof PRESET_CATEGORIES)[number];
 
 const CategorySchema = z.enum(PRESET_CATEGORIES);

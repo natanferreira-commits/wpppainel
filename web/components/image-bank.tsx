@@ -11,6 +11,7 @@ import {
 import { cn } from '@/lib/cn';
 
 const CATEGORIES: { id: PresetCategory; label: string; emoji: string }[] = [
+  { id: 'SIMPLES', label: 'Simples', emoji: '⚪' },
   { id: 'AUMENTADAS', label: 'Aumentadas', emoji: '🔥' },
   { id: 'NBA', label: 'NBA', emoji: '🏀' },
   { id: 'BINGOS', label: 'Bingos', emoji: '🎯' },
