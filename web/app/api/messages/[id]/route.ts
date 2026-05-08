@@ -22,10 +22,20 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
 }
 
 // PATCH /api/messages/[id]
-// Atualiza mensagem agendada. Round 1: aceita só { status: "CANCELLED" }
-// e edição de content/scheduledFor. Round 3 valida ownership via JWT.
 //
-// RN-05: mensagem SENT é imutável → 400 se tentar editar.
+// Permissões por campo (não por mensagem inteira):
+//
+//   Categoria A — CONTEÚDO (content, scheduledFor, imageUrl, mentionAll)
+//     · Só pode ser editado quando status = SCHEDULED
+//     · Adicionalmente, só até 1min antes do horário de envio (RN-04)
+//
+//   Categoria B — CANCELAMENTO (status: CANCELLED)
+//     · Só pode em SCHEDULED. Em SENT/FAILED/CANCELLED não faz sentido.
+//
+//   Categoria C — METADADOS (nickname, result)
+//     · SEMPRE permitido, em QUALQUER status. Resultado é por definição
+//       pós-jogo, marcar Green/Red/Void numa tip SENT é o caso de uso
+//       principal. Apelido também pode ser ajustado depois.
 
 const PatchSchema = z.object({
   status: z.literal('CANCELLED').optional(),
@@ -35,7 +45,6 @@ const PatchSchema = z.object({
   imageUrl: z.string().url().nullable().optional(),
   mentionAll: z.boolean().optional(),
   nickname: z.string().max(80).nullable().optional(),
-  // resultado da tip — só faz sentido editar APÓS o jogo
   result: z.enum(['GREEN', 'RED', 'VOID']).nullable().optional(),
 });
 
@@ -49,23 +58,19 @@ export async function PATCH(req: NextRequest, ctx: { params: { id: string } }) {
   });
   if (!message) return notFound('Mensagem');
 
-  // RN-05: SENT/FAILED é imutável
-  if (message.status === 'SENT' || message.status === 'FAILED') {
-    return errorResponse(`Mensagem já está em ${message.status}, não pode ser editada`, 400);
-  }
-
-  // RN-04: editar conteúdo só até 1 minuto antes do envio.
-  // Apelido e resultado podem ser editados a qualquer momento
-  // (mesmo após SENT — resultado SEMPRE é pós-jogo).
   const isEditingContent =
-    parsed.data.scheduledFor !== undefined ||
     parsed.data.content !== undefined ||
-    parsed.data.imageUrl !== undefined;
+    parsed.data.scheduledFor !== undefined ||
+    parsed.data.imageUrl !== undefined ||
+    parsed.data.mentionAll !== undefined;
 
+  const isCancelling = parsed.data.status === 'CANCELLED';
+
+  // Categoria A — conteúdo só em SCHEDULED + 1min antes (RN-04)
   if (isEditingContent) {
-    if (message.status === 'SENT' || message.status === 'FAILED') {
+    if (message.status !== 'SCHEDULED') {
       return errorResponse(
-        `Mensagem já está em ${message.status}, não pode ter conteúdo editado`,
+        `Conteúdo de mensagem ${message.status} não pode ser editado`,
         400,
       );
     }
@@ -78,6 +83,16 @@ export async function PATCH(req: NextRequest, ctx: { params: { id: string } }) {
     }
   }
 
+  // Categoria B — cancelar só em SCHEDULED
+  if (isCancelling && message.status !== 'SCHEDULED') {
+    return errorResponse(
+      `Mensagem ${message.status} não pode ser cancelada`,
+      400,
+    );
+  }
+
+  // Categoria C (nickname, result) — sem restrição de status
+
   const updated = await prisma.message.update({
     where: { id: ctx.params.id },
     data: {
@@ -86,7 +101,6 @@ export async function PATCH(req: NextRequest, ctx: { params: { id: string } }) {
       scheduledFor: parsed.data.scheduledFor
         ? new Date(parsed.data.scheduledFor)
         : undefined,
-      // imageUrl: null = remove imagem; string = troca; undefined = mantém
       imageUrl: parsed.data.imageUrl === undefined ? undefined : parsed.data.imageUrl,
       mentionAll: parsed.data.mentionAll,
       nickname:
@@ -100,16 +114,8 @@ export async function PATCH(req: NextRequest, ctx: { params: { id: string } }) {
     },
   });
 
-  // RN-05 (relaxada pra apelido/resultado):
-  if (
-    (message.status === 'SENT' || message.status === 'FAILED') &&
-    parsed.data.status === 'CANCELLED'
-  ) {
-    return errorResponse('Mensagem já enviada não pode ser cancelada', 400);
-  }
-
-  // Se cancelou, propaga pros targets
-  if (parsed.data.status === 'CANCELLED') {
+  // Se cancelou, propaga pros targets ainda agendados
+  if (isCancelling) {
     await prisma.messageTarget.updateMany({
       where: { messageId: ctx.params.id, status: 'SCHEDULED' },
       data: { status: 'CANCELLED' },
