@@ -83,7 +83,7 @@ export default function HistoricoPage() {
 
   return (
     <div className="max-w-7xl mx-auto p-4 md:p-6">
-      <header className="mb-6 flex items-start justify-between gap-4 flex-wrap">
+      <header className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-slate-100">Histórico</h1>
           <p className="text-sm text-slate-400">
@@ -92,10 +92,11 @@ export default function HistoricoPage() {
           </p>
         </div>
 
-        {/* Stats inline */}
+        {/* Stats — grid 3 colunas no mobile (linha 1: total/green/red,
+            linha 2: void/acerto), 5 colunas no desktop. */}
         {stats.total > 0 && (
-          <div className="flex gap-3 text-xs">
-            <Stat label="Tips enviadas" value={stats.total} />
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-2 sm:gap-3 sm:flex-shrink-0">
+            <Stat label="Tips" value={stats.total} />
             <Stat label="🟢 Green" value={stats.green} tone="green" />
             <Stat label="🔴 Red" value={stats.red} tone="red" />
             <Stat label="⚪ Void" value={stats.void} />
@@ -117,8 +118,106 @@ export default function HistoricoPage() {
         </div>
       )}
 
+      {/* ─── Mobile: lista de cards (< md) ────────────────────────── */}
       {items.length > 0 && (
-        <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
+        <ul className="md:hidden space-y-3">
+          {items.map((m) => {
+            const style = STATUS_STYLE[m.status] ?? STATUS_STYLE.SCHEDULED;
+            const isSent = m.status === 'SENT';
+            return (
+              <li
+                key={m.id}
+                className="bg-slate-900 rounded-xl border border-slate-800 p-4"
+              >
+                {/* Linha 1: apelido em destaque + status badge */}
+                <div className="flex items-start justify-between gap-3 mb-2">
+                  <div className="flex-1 min-w-0">
+                    {m.nickname ? (
+                      <p className="font-semibold text-slate-100 break-words">
+                        {m.nickname}
+                      </p>
+                    ) : (
+                      <p
+                        className="text-slate-600 italic text-sm"
+                        title={m.content.replace(/\n+/g, ' ').slice(0, 200)}
+                      >
+                        — sem apelido
+                      </p>
+                    )}
+                  </div>
+                  <span
+                    className={cn(
+                      'inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border whitespace-nowrap shrink-0',
+                      style.cls,
+                    )}
+                  >
+                    {style.label}
+                  </span>
+                </div>
+
+                {/* Linha 2: data/hora + sent/criada */}
+                <div className="text-xs text-slate-400 mb-1">
+                  <span className="font-medium text-slate-300">
+                    {new Date(m.scheduledFor).toLocaleString('pt-BR', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </span>
+                  {isSent && m.sentAt && (
+                    <span className="text-slate-500">
+                      {' · '}enviada{' '}
+                      {new Date(m.sentAt).toLocaleTimeString('pt-BR', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </span>
+                  )}
+                </div>
+
+                {/* Linha 3: destino + operador */}
+                <div className="flex flex-wrap items-center gap-x-2 text-xs text-slate-500 mb-2">
+                  <span className="truncate">
+                    {m.destinationType === 'ANNOUNCEMENT_CHANNEL' && '📢 '}
+                    {m.destinationType === 'GROUP' && '💬 '}
+                    {m.destinationType === 'MULTI_GROUP' && '💬 '}
+                    {m.targets.map((t) => t.group.name).join(', ')}
+                  </span>
+                  <span className="text-slate-700">·</span>
+                  <span>{m.createdBy.name}</span>
+                </div>
+
+                {/* Erro de envio, se houver */}
+                {m.lastError && (
+                  <p className="text-xs text-red-400 mb-2 break-words" title={m.lastError}>
+                    ⚠️ {m.lastError}
+                  </p>
+                )}
+
+                {/* Linha 4: resultado (só pra SENT) — select full-width, target 44px */}
+                {isSent && (
+                  <div className="pt-2 border-t border-slate-800">
+                    <p className="text-[10px] uppercase tracking-wide text-slate-500 mb-1.5">
+                      Resultado da tip
+                    </p>
+                    <ResultSelect
+                      value={m.result}
+                      disabled={updating === m.id}
+                      onChange={(v) => handleResultChange(m.id, v)}
+                      fullWidth
+                    />
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {/* ─── Desktop: tabela tradicional (md+) ────────────────────── */}
+      {items.length > 0 && (
+        <div className="hidden md:block bg-slate-900 rounded-xl border border-slate-800 overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-slate-900 border-b border-slate-800">
               <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
@@ -254,13 +353,15 @@ function ResultSelect({
   value,
   onChange,
   disabled,
+  fullWidth,
 }: {
   value: TipResult;
   onChange: (v: TipResult) => void;
   disabled?: boolean;
+  // No mobile (card view) o select ocupa largura toda e tem altura
+  // generosa pra ser fácil de tocar. No desktop (tabela) fica compacto.
+  fullWidth?: boolean;
 }) {
-  const current = RESULT_OPTIONS.find((o) => o.value === value) ?? RESULT_OPTIONS[0];
-
   // Cor da borda baseada no resultado atual
   const borderTone =
     value === 'GREEN'
@@ -280,7 +381,10 @@ function ResultSelect({
       }}
       disabled={disabled}
       className={cn(
-        'rounded-md border px-2 py-1 text-xs font-medium outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer disabled:opacity-50',
+        'rounded-md border font-medium outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer disabled:opacity-50',
+        fullWidth
+          ? 'w-full px-3 min-h-[44px] text-base'
+          : 'px-2 py-1 text-xs',
         borderTone,
       )}
     >
