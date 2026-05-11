@@ -18,6 +18,7 @@ import {
   type Message,
 } from '@/lib/api';
 import { ImageBank } from '@/components/image-bank';
+import { CardSkeleton } from '@/components/skeleton';
 import { cn } from '@/lib/cn';
 
 type ImageTab = 'bank' | 'upload';
@@ -87,7 +88,13 @@ export default function AgendadasPage() {
         </Link>
       </header>
 
-      {loading && <p className="text-sm text-slate-500">Carregando…</p>}
+      {loading && (
+        <ul className="space-y-3" aria-label="Carregando mensagens agendadas">
+          <CardSkeleton />
+          <CardSkeleton />
+          <CardSkeleton />
+        </ul>
+      )}
 
       {!loading && items.length === 0 && (
         <div className="bg-slate-900 border border-slate-800 rounded-xl p-12 text-center">

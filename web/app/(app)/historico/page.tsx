@@ -6,6 +6,7 @@ import {
   type Message,
   type TipResult,
 } from '@/lib/api';
+import { CardSkeleton, Skeleton } from '@/components/skeleton';
 import { cn } from '@/lib/cn';
 
 const STATUS_STYLE: Record<string, { label: string; cls: string }> = {
@@ -109,7 +110,25 @@ export default function HistoricoPage() {
         )}
       </header>
 
-      {loading && <p className="text-sm text-slate-500">Carregando…</p>}
+      {loading && (
+        <div aria-label="Carregando histórico">
+          {/* Mobile: 4 card skeletons */}
+          <div className="md:hidden space-y-3">
+            <CardSkeleton />
+            <CardSkeleton />
+            <CardSkeleton />
+            <CardSkeleton />
+          </div>
+          {/* Desktop: skeleton da tabela */}
+          <div className="hidden md:block bg-slate-900 rounded-xl border border-slate-800 p-4 space-y-3">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-full" />
+          </div>
+        </div>
+      )}
       {error && <p className="text-sm text-red-400">{error}</p>}
 
       {!loading && items.length === 0 && (
