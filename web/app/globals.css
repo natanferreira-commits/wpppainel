@@ -19,6 +19,29 @@ input[type="time"] {
   color-scheme: dark;
 }
 
+/* iOS Safari faz auto-zoom em inputs com font-size < 16px no foco.
+   Estraga o layout e é o anti-pattern #1 de mobile web forms.
+   Força 16px em todos os campos de input no mobile (<768px), mantendo
+   as classes Tailwind text-xs/text-sm intactas no desktop. */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* Remove o delay de 300ms (double-tap zoom) em elementos interativos.
+   Toque fica responsivo, ainda permite pinch-zoom no resto da página. */
+button,
+a,
+[role="button"],
+input,
+select,
+textarea {
+  touch-action: manipulation;
+}
+
 /* Scrollbar dark */
 ::-webkit-scrollbar {
   width: 10px;

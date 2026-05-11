@@ -218,7 +218,7 @@ export default function NovaMensagemPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
+    <div className="max-w-7xl mx-auto p-4 md:p-6">
       <header className="mb-6">
         <h1 className="text-2xl font-semibold text-slate-100">Nova mensagem</h1>
         <p className="text-sm text-slate-400">
@@ -534,20 +534,20 @@ export default function NovaMensagemPage() {
             </div>
 
             {mode === 'scheduled' && (
-              <div className="mt-3 flex gap-2 items-center">
+              <div className="mt-3 flex flex-col sm:flex-row sm:items-center gap-2">
                 <input
                   type="date"
                   value={scheduleDate}
                   onChange={(e) => setScheduleDate(e.target.value)}
-                  className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+                  className="w-full sm:w-auto rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100"
                 />
                 <input
                   type="time"
                   value={scheduleTime}
                   onChange={(e) => setScheduleTime(e.target.value)}
-                  className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100"
+                  className="w-full sm:w-auto rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100"
                 />
-                <p className="text-xs text-slate-500 self-center">
+                <p className="text-xs text-slate-500 sm:self-center">
                   {formatDelta(scheduledForDate)}
                 </p>
               </div>

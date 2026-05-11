@@ -104,7 +104,7 @@ export default function InsightsPage() {
 
   if (error) {
     return (
-      <div className="max-w-6xl mx-auto p-6">
+      <div className="max-w-6xl mx-auto p-4 md:p-6">
         <h1 className="text-2xl font-semibold text-slate-100 mb-2">Insights</h1>
         <p className="text-sm text-red-400">{error}</p>
       </div>
@@ -112,7 +112,7 @@ export default function InsightsPage() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto p-6">
+    <div className="max-w-6xl mx-auto p-4 md:p-6">
       <header className="mb-6 flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-semibold text-slate-100">Insights</h1>

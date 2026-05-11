@@ -37,7 +37,7 @@ export function WhatsAppPreview({ content, imageUrl, destinationLabel, scheduled
     : new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
   return (
-    <div className="bg-whatsapp-bg rounded-xl overflow-hidden shadow-sm border border-slate-200 sticky top-6">
+    <div className="bg-whatsapp-bg rounded-xl overflow-hidden shadow-sm border border-slate-200 md:sticky md:top-6">
       {/* Header simulando topo do WA */}
       <div className="bg-whatsapp-panel px-4 py-3 flex items-center gap-3">
         <div className="w-8 h-8 rounded-full bg-emerald-600 flex items-center justify-center text-white text-xs font-bold">

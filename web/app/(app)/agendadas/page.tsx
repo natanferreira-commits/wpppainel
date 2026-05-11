@@ -68,8 +68,8 @@ export default function AgendadasPage() {
   const editingMessage = items.find((m) => m.id === editingId);
 
   return (
-    <div className="max-w-5xl mx-auto p-6">
-      <header className="mb-6 flex items-start justify-between">
+    <div className="max-w-5xl mx-auto p-4 md:p-6">
+      <header className="mb-6 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-slate-100">Agendadas</h1>
           <p className="text-sm text-slate-400">
@@ -80,7 +80,7 @@ export default function AgendadasPage() {
         </div>
         <Link
           href="/nova-mensagem"
-          className="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-medium flex items-center gap-2"
+          className="px-4 min-h-[44px] sm:min-h-0 sm:py-2 rounded-lg bg-emerald-500 md:hover:bg-emerald-600 active:bg-emerald-700 text-white text-sm font-medium flex items-center justify-center gap-2"
         >
           <Send size={14} />
           Nova mensagem
@@ -110,10 +110,11 @@ export default function AgendadasPage() {
             return (
               <li
                 key={m.id}
-                className="bg-slate-900 rounded-xl border border-slate-800 p-4 hover:border-emerald-500/30 transition"
+                className="bg-slate-900 rounded-xl border border-slate-800 p-4 md:hover:border-emerald-500/30 transition"
               >
-                <div className="flex items-start gap-4">
-                  <div className="w-32 shrink-0">
+                {/* Mobile: stack vertical. Desktop (sm+): 3 colunas lado a lado. */}
+                <div className="flex flex-col sm:flex-row sm:items-start gap-3 sm:gap-4">
+                  <div className="sm:w-32 sm:shrink-0 flex sm:block items-center gap-2">
                     <p className="text-sm font-medium text-slate-300">
                       {scheduledDate.toLocaleString('pt-BR', {
                         day: '2-digit',
@@ -128,7 +129,7 @@ export default function AgendadasPage() {
                     </p>
                     <p
                       className={cn(
-                        'text-xs mt-1',
+                        'text-xs sm:mt-1 ml-auto sm:ml-0',
                         overdue
                           ? 'text-red-400 font-medium flex items-center gap-1'
                           : isPast
@@ -142,14 +143,14 @@ export default function AgendadasPage() {
                   </div>
 
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 text-xs text-slate-500 mb-1">
+                    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-slate-500 mb-1">
                       <span>
                         {m.destinationType === 'ANNOUNCEMENT_CHANNEL' && '📢 '}
                         {m.destinationType === 'GROUP' && '💬 '}
                         {m.destinationType === 'MULTI_GROUP' && '💬 '}
                         {m.targets.map((t) => t.group.name).join(' · ')}
                       </span>
-                      <span className="text-slate-700">·</span>
+                      <span className="text-slate-700 hidden sm:inline">·</span>
                       <span>{m.instance.name}</span>
                     </div>
                     <p className="text-sm text-slate-200 line-clamp-2 whitespace-pre-wrap">
@@ -162,20 +163,23 @@ export default function AgendadasPage() {
                     )}
                   </div>
 
-                  <div className="flex flex-col gap-2 shrink-0">
+                  {/* Mobile: botões horizontais full-width. Desktop: stack vertical à direita. */}
+                  <div className="flex sm:flex-col gap-2 sm:shrink-0">
                     <button
                       onClick={() => setEditingId(m.id)}
-                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-900 text-xs text-slate-300 hover:bg-emerald-500/10 hover:border-emerald-500/40 hover:text-emerald-300 transition"
+                      className="flex-1 sm:flex-initial flex items-center justify-center gap-1 px-3 min-h-[40px] sm:min-h-0 sm:py-1.5 rounded-lg border border-slate-700 bg-slate-900 text-sm sm:text-xs text-slate-300 md:hover:bg-emerald-500/10 md:hover:border-emerald-500/40 md:hover:text-emerald-300 active:bg-slate-800 transition"
                     >
-                      <Pencil size={12} />
+                      <Pencil size={14} className="sm:hidden" />
+                      <Pencil size={12} className="hidden sm:inline" />
                       Editar
                     </button>
                     <button
                       onClick={() => handleCancel(m.id)}
                       disabled={cancelling === m.id}
-                      className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-slate-700 bg-slate-900 text-xs text-slate-300 hover:bg-red-500/10 hover:border-red-500/40 hover:text-red-400 transition disabled:opacity-50"
+                      className="flex-1 sm:flex-initial flex items-center justify-center gap-1 px-3 min-h-[40px] sm:min-h-0 sm:py-1.5 rounded-lg border border-slate-700 bg-slate-900 text-sm sm:text-xs text-slate-300 md:hover:bg-red-500/10 md:hover:border-red-500/40 md:hover:text-red-400 active:bg-slate-800 transition disabled:opacity-50"
                     >
-                      <X size={12} />
+                      <X size={14} className="sm:hidden" />
+                      <X size={12} className="hidden sm:inline" />
                       {cancelling === m.id ? 'Cancelando…' : 'Cancelar'}
                     </button>
                   </div>
@@ -289,7 +293,7 @@ function EditModal({
       className="fixed inset-0 bg-slate-950/80 z-50 flex items-center justify-center p-4 backdrop-blur-sm"
       onClick={(e) => e.target === e.currentTarget && onClose()}
     >
-      <div className="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-auto">
+      <div className="bg-slate-900 border border-slate-800 rounded-xl w-full max-w-2xl max-h-[90dvh] overflow-auto">
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
           <div>
@@ -450,18 +454,18 @@ function EditModal({
             <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wide">
               Reagendar
             </label>
-            <div className="flex gap-2 items-center">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
               <input
                 type="date"
                 value={scheduleDate}
                 onChange={(e) => setScheduleDate(e.target.value)}
-                className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+                className="w-full sm:w-auto rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100"
               />
               <input
                 type="time"
                 value={scheduleTime}
                 onChange={(e) => setScheduleTime(e.target.value)}
-                className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100"
+                className="w-full sm:w-auto rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100"
               />
               <span className="text-xs text-slate-500">
                 {formatDelta(newScheduledFor.getTime() - Date.now())}

@@ -21,7 +21,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   if (!ready) return null;
 
   return (
-    <div className="flex h-screen bg-slate-950">
+    // Mobile: stack vertical (topbar em cima, main abaixo, drawer é overlay).
+    // Desktop (md+): flex horizontal com sidebar lateral.
+    <div className="flex flex-col md:flex-row min-h-screen md:h-screen bg-slate-950">
       <Sidebar />
       <main className="flex-1 overflow-auto">{children}</main>
     </div>
