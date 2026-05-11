@@ -486,10 +486,11 @@ function MembersNowCard({
           onClick={onRefresh}
           disabled={refreshing}
           title="Atualizar agora (puxa contagem real da Z-API)"
-          className="text-slate-500 hover:text-emerald-400 disabled:opacity-50 disabled:cursor-not-allowed transition"
+          aria-label="Atualizar contagem de membros"
+          className="text-slate-500 md:hover:text-emerald-400 active:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition rounded-lg p-2 -m-2"
         >
           <RefreshCw
-            size={14}
+            size={16}
             className={cn(refreshing && 'animate-spin text-emerald-400')}
           />
         </button>

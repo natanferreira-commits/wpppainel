@@ -304,7 +304,7 @@ function EditModal({
           </div>
           <button
             onClick={onClose}
-            className="text-slate-500 hover:text-slate-300 p-1"
+            className="text-slate-500 md:hover:text-slate-300 active:bg-slate-800 rounded-lg p-2 -mr-1"
             aria-label="Fechar"
           >
             <X size={20} />
@@ -370,10 +370,10 @@ function EditModal({
                 <button
                   type="button"
                   onClick={() => setImageUrl('')}
-                  className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 shadow-lg"
+                  className="absolute -top-2 -right-2 bg-red-500 md:hover:bg-red-600 active:bg-red-700 text-white rounded-full p-2 shadow-lg"
                   aria-label="Remover imagem"
                 >
-                  <X size={14} />
+                  <X size={16} />
                 </button>
               </div>
             ) : (
@@ -481,13 +481,14 @@ function EditModal({
           )}
         </div>
 
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-800 flex justify-end gap-2">
+        {/* Footer — mobile: stack vertical (primário em cima pra ficar
+            na zona do polegar). Desktop: alinhado à direita. */}
+        <div className="sticky bottom-0 bg-slate-900 px-6 py-4 border-t border-slate-800 flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
           <button
             type="button"
             onClick={onClose}
             disabled={saving}
-            className="px-4 py-2 rounded-lg border border-slate-700 bg-slate-900 text-sm text-slate-300 hover:bg-slate-800"
+            className="w-full sm:w-auto px-4 min-h-[44px] sm:min-h-0 sm:py-2 rounded-lg border border-slate-700 bg-slate-900 text-sm text-slate-300 md:hover:bg-slate-800 active:bg-slate-800"
           >
             Cancelar
           </button>
@@ -495,7 +496,7 @@ function EditModal({
             type="button"
             onClick={handleSave}
             disabled={saving || uploading || !content.trim()}
-            className="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-700 disabled:text-slate-500 text-white text-sm font-medium"
+            className="w-full sm:w-auto px-4 min-h-[44px] sm:min-h-0 sm:py-2 rounded-lg bg-emerald-500 md:hover:bg-emerald-600 active:bg-emerald-700 disabled:bg-slate-700 disabled:text-slate-500 text-white text-sm font-medium"
           >
             {saving ? 'Salvando…' : 'Salvar alterações'}
           </button>

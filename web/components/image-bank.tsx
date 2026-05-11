@@ -79,18 +79,18 @@ export function ImageBank({ onSelect }: Props) {
 
   return (
     <div>
-      {/* Tabs categoria */}
-      <div className="flex gap-1 mb-3 border-b border-slate-800">
+      {/* Tabs categoria — flex-wrap pra não estourar em mobile estreito */}
+      <div className="flex flex-wrap gap-1 mb-3 border-b border-slate-800">
         {CATEGORIES.map((cat) => (
           <button
             key={cat.id}
             type="button"
             onClick={() => setActiveCategory(cat.id)}
             className={cn(
-              'px-3 py-2 text-xs font-medium transition border-b-2 -mb-px',
+              'px-3 py-2.5 md:py-2 text-xs font-medium transition border-b-2 -mb-px',
               activeCategory === cat.id
                 ? 'border-emerald-500 text-emerald-400'
-                : 'border-transparent text-slate-400 hover:text-slate-200',
+                : 'border-transparent text-slate-400 md:hover:text-slate-200 active:text-slate-200',
             )}
           >
             <span className="mr-1">{cat.emoji}</span>
@@ -118,7 +118,7 @@ export function ImageBank({ onSelect }: Props) {
               key={p.id}
               type="button"
               onClick={() => onSelect(p.url)}
-              className="relative group aspect-square rounded-lg overflow-hidden border border-slate-800 hover:border-emerald-500 transition cursor-pointer block"
+              className="relative group aspect-square rounded-lg overflow-hidden border border-slate-800 md:hover:border-emerald-500 transition cursor-pointer block"
               aria-label={`Selecionar imagem ${p.label ?? ''}`}
             >
               <img
@@ -126,13 +126,15 @@ export function ImageBank({ onSelect }: Props) {
                 alt={p.label ?? 'preset'}
                 className="w-full h-full object-cover pointer-events-none"
               />
-              {/* Label flutuante no rodapé (hover) */}
+              {/* Label flutuante — sempre visível no mobile (touch não tem hover),
+                  só hover no desktop pra não poluir */}
               {p.label && (
-                <span className="absolute bottom-0 left-0 right-0 px-1.5 py-1 text-[10px] text-white bg-slate-950/70 truncate opacity-0 group-hover:opacity-100 transition pointer-events-none">
+                <span className="absolute bottom-0 left-0 right-0 px-1.5 py-1 text-[10px] text-white bg-slate-950/70 truncate md:opacity-0 md:group-hover:opacity-100 transition pointer-events-none">
                   {p.label}
                 </span>
               )}
-              {/* Botão delete — em cima, NÃO captura click do card */}
+              {/* Botão delete — sempre visível no mobile, hover-only no desktop.
+                  Target maior (p-1.5) e ícone 12 pra ficar tocável. */}
               <span
                 role="button"
                 tabIndex={0}
@@ -148,10 +150,10 @@ export function ImageBank({ onSelect }: Props) {
                     handleDelete(p.id);
                   }
                 }}
-                className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 bg-red-500/90 hover:bg-red-500 text-white rounded p-1 transition cursor-pointer"
+                className="absolute top-1 right-1 bg-red-500/90 md:hover:bg-red-500 active:bg-red-600 text-white rounded p-1.5 md:p-1 md:opacity-0 md:group-hover:opacity-100 transition cursor-pointer"
                 aria-label="Remover do banco"
               >
-                <Trash2 size={10} />
+                <Trash2 size={12} className="md:size-2.5" />
               </span>
             </button>
           ))}

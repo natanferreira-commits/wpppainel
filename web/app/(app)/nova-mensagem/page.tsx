@@ -430,10 +430,10 @@ export default function NovaMensagemPage() {
                   <button
                     type="button"
                     onClick={handleRemoveImage}
-                    className="absolute -top-2 -right-2 bg-red-500 hover:bg-red-600 text-white rounded-full p-1 shadow-lg"
+                    className="absolute -top-2 -right-2 bg-red-500 md:hover:bg-red-600 active:bg-red-700 text-white rounded-full p-2 shadow-lg"
                     aria-label="Remover imagem"
                   >
-                    <X size={14} />
+                    <X size={16} />
                   </button>
                 </div>
               ) : (
@@ -573,18 +573,20 @@ export default function NovaMensagemPage() {
             </div>
           )}
 
-          <div className="flex justify-end gap-2">
+          {/* Mobile: stack vertical (botão primário em cima, fica na
+              zona do polegar). Desktop: alinhado à direita lado a lado. */}
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2">
             <button
               type="button"
               onClick={() => router.push('/historico')}
-              className="px-4 py-2 rounded-lg border border-slate-700 bg-slate-900 text-sm text-slate-300 hover:bg-slate-800"
+              className="w-full sm:w-auto px-4 min-h-[44px] sm:min-h-0 sm:py-2 rounded-lg border border-slate-700 bg-slate-900 text-sm text-slate-300 md:hover:bg-slate-800 active:bg-slate-800"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={submitting || !instanceId || !content.trim() || !nickname.trim()}
-              className="px-4 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-600 disabled:bg-slate-700 disabled:text-slate-500 text-white text-sm font-medium"
+              className="w-full sm:w-auto px-4 min-h-[44px] sm:min-h-0 sm:py-2 rounded-lg bg-emerald-500 md:hover:bg-emerald-600 active:bg-emerald-700 disabled:bg-slate-700 disabled:text-slate-500 text-white text-sm font-medium"
             >
               {submitting
                 ? 'Salvando…'
