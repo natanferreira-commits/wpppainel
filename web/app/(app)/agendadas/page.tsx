@@ -16,9 +16,11 @@ import {
   messages as messagesApi,
   uploads as uploadsApi,
   type Message,
+  type BettingHouse,
 } from '@/lib/api';
 import { ImageBank } from '@/components/image-bank';
 import { CardSkeleton } from '@/components/skeleton';
+import { BETTING_HOUSES } from '@/lib/houses';
 import { cn } from '@/lib/cn';
 
 type ImageTab = 'bank' | 'upload';
@@ -238,6 +240,7 @@ function EditModal({
 
   const [content, setContent] = useState(message.content);
   const [nickname, setNickname] = useState(message.nickname ?? '');
+  const [house, setHouse] = useState<BettingHouse | ''>(message.house ?? '');
   const [imageUrl, setImageUrl] = useState(message.imageUrl ?? '');
   const [imageTab, setImageTab] = useState<ImageTab>('bank');
   const [mentionAll, setMentionAll] = useState<boolean>(message.mentionAll);
@@ -282,10 +285,11 @@ function EditModal({
         // null se removida, string nova se trocou, manter atual se não mexeu
         imageUrl: imageUrl ? imageUrl : message.imageUrl ? null : undefined,
         mentionAll,
-        // Edição: aceita vazio (mensagens legadas podem não ter apelido).
+        // Edição: aceita vazio (mensagens legadas podem não ter apelido/casa).
         // Mas se tem texto, normaliza com trim. Se vazio, manda null
         // pra deixar o backend manter o estado atual coerente.
         nickname: nickname.trim() || null,
+        house: house || null,
       });
       onSaved();
     } catch (err) {
@@ -320,6 +324,35 @@ function EditModal({
 
         {/* Body */}
         <div className="p-6 space-y-4">
+          {/* Casa de aposta */}
+          <div>
+            <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wide">
+              Casa de aposta <span className="text-red-400 normal-case">*</span>
+            </label>
+            <select
+              value={house}
+              onChange={(e) => setHouse(e.target.value as BettingHouse | '')}
+              className={cn(
+                'w-full rounded-lg border bg-slate-950 px-3 py-2 text-sm text-slate-100 outline-none focus:ring-1',
+                house
+                  ? 'border-slate-700 focus:border-emerald-500 focus:ring-emerald-500'
+                  : 'border-amber-500/40 focus:border-amber-500 focus:ring-amber-500',
+              )}
+            >
+              <option value="">— selecione a casa —</option>
+              {BETTING_HOUSES.map((h) => (
+                <option key={h} value={h}>
+                  {h}
+                </option>
+              ))}
+            </select>
+            {!house && (
+              <p className="text-xs text-amber-400/80 mt-1">
+                ⚠️ Sem casa não dá pra cruzar com relatório do afiliado depois.
+              </p>
+            )}
+          </div>
+
           {/* Apelido */}
           <div>
             <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wide">

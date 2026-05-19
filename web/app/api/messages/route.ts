@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
 import { getZapiClient } from '@/lib/zapi';
 import { dispatchMessage } from '@/lib/sender';
+import { BETTING_HOUSES } from '@/lib/houses';
 import { errorResponse, fromZodError, notFound } from '../_helpers/errors';
 
 export const dynamic = 'force-dynamic';
@@ -32,6 +33,11 @@ const CreateMessageSchema = z
     // Apelido é obrigatório a partir da v2 — sem ele o histórico fica
     // ilegível e impossível marcar resultado depois.
     nickname: z.string().min(1, 'Apelido é obrigatório').max(80),
+    // Casa de aposta — obrigatória pra cruzar com relatório de afiliado
+    // depois (saber qual casa converteu melhor por tip).
+    house: z.enum(BETTING_HOUSES, {
+      errorMap: () => ({ message: 'Casa inválida — escolha uma da lista' }),
+    }),
     mentionAll: z.boolean().optional(),
     scheduledFor: z.string().datetime().optional(),
     createdById: z.string(),
@@ -99,6 +105,7 @@ export async function POST(req: NextRequest) {
       content: dto.content,
       imageUrl: dto.imageUrl ?? null,
       nickname: dto.nickname?.trim() || null,
+      house: dto.house,
       mentionAll: dto.mentionAll ?? false,
       scheduledFor,
       status: 'SCHEDULED',

@@ -39,6 +39,18 @@ const RESULT_OPTIONS: Array<{ value: TipResult; label: string; emoji: string }> 
   { value: 'VOID', label: 'Void', emoji: '⚪' },
 ];
 
+// Estilo do badge de casa — cor distinta por casa pra scanear visualmente
+// no histórico ("ahn, essa semana mandei muita Stake").
+const HOUSE_STYLE: Record<string, string> = {
+  EsportivaBet: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/30',
+  Stake: 'bg-purple-500/10 text-purple-300 border-purple-500/30',
+  BetMGM: 'bg-amber-500/10 text-amber-300 border-amber-500/30',
+  Novibet: 'bg-blue-500/10 text-blue-300 border-blue-500/30',
+  Lottu: 'bg-pink-500/10 text-pink-300 border-pink-500/30',
+  Superbet: 'bg-red-500/10 text-red-300 border-red-500/30',
+};
+const HOUSE_STYLE_DEFAULT = 'bg-slate-800/50 text-slate-400 border-slate-700';
+
 export default function HistoricoPage() {
   const [items, setItems] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
@@ -174,6 +186,20 @@ export default function HistoricoPage() {
                   </span>
                 </div>
 
+                {/* Badge da casa de aposta */}
+                {m.house && (
+                  <div className="mb-2">
+                    <span
+                      className={cn(
+                        'inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium border whitespace-nowrap',
+                        HOUSE_STYLE[m.house] ?? HOUSE_STYLE_DEFAULT,
+                      )}
+                    >
+                      🏠 {m.house}
+                    </span>
+                  </div>
+                )}
+
                 {/* Linha 2: data/hora + sent/criada */}
                 <div className="text-xs text-slate-400 mb-1">
                   <span className="font-medium text-slate-300">
@@ -243,6 +269,7 @@ export default function HistoricoPage() {
                 <th className="px-4 py-3 font-medium">Quando</th>
                 <th className="px-4 py-3 font-medium">Destino</th>
                 <th className="px-4 py-3 font-medium">Apelido</th>
+                <th className="px-4 py-3 font-medium">Casa</th>
                 <th className="px-4 py-3 font-medium">Status</th>
                 <th className="px-4 py-3 font-medium">Resultado</th>
                 <th className="px-4 py-3 font-medium">Operador</th>
@@ -299,6 +326,20 @@ export default function HistoricoPage() {
                         >
                           — sem apelido
                         </p>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {m.house ? (
+                        <span
+                          className={cn(
+                            'inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium border whitespace-nowrap',
+                            HOUSE_STYLE[m.house] ?? HOUSE_STYLE_DEFAULT,
+                          )}
+                        >
+                          {m.house}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-slate-600">—</span>
                       )}
                     </td>
                     <td className="px-4 py-3">

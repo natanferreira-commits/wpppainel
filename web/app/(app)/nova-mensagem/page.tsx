@@ -20,10 +20,12 @@ import {
   type Instance,
   type Group,
   type DestinationType,
+  type BettingHouse,
 } from '@/lib/api';
 import { WhatsAppPreview } from '@/components/whatsapp-preview';
 import { ImageBank } from '@/components/image-bank';
 import { MESSAGE_TEMPLATE } from '@/lib/templates';
+import { BETTING_HOUSES } from '@/lib/houses';
 import { cn } from '@/lib/cn';
 
 type ImageTab = 'bank' | 'upload';
@@ -48,6 +50,7 @@ export default function NovaMensagemPage() {
   const [groupIds, setGroupIds] = useState<string[]>([]);
   const [content, setContent] = useState<string>(MESSAGE_TEMPLATE);
   const [nickname, setNickname] = useState<string>('');
+  const [house, setHouse] = useState<BettingHouse | ''>('');
   const [imageUrl, setImageUrl] = useState<string>('');
   const [imageTab, setImageTab] = useState<ImageTab>('bank');
   const [mentionAll, setMentionAll] = useState<boolean>(false);
@@ -159,11 +162,18 @@ export default function NovaMensagemPage() {
     setFeedback(null);
 
     try {
+      // TS-safe: garante que house não é '' (botão fica disabled se for)
+      if (!house) {
+        setFeedback({ type: 'error', text: 'Selecione a casa de aposta antes de enviar' });
+        setSubmitting(false);
+        return;
+      }
       const payload = {
         instanceId,
         destinationType,
         content,
         nickname: nickname.trim(),
+        house,
         createdById: user.id,
         mentionAll,
         ...(imageUrl ? { imageUrl } : {}),
@@ -204,6 +214,7 @@ export default function NovaMensagemPage() {
       if (created.status !== 'FAILED') {
         setContent(MESSAGE_TEMPLATE);
         setNickname('');
+        setHouse('');
         setImageUrl('');
         setMentionAll(false);
       }
@@ -369,6 +380,29 @@ export default function NovaMensagemPage() {
 
           {/* ③ Conteúdo */}
           <Section number="③" title="Conteúdo">
+            {/* Casa de aposta — obrigatória, cruza com relatório do afiliado */}
+            <div className="mb-3">
+              <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wide">
+                Casa de aposta <span className="text-red-400 normal-case">*</span>
+              </label>
+              <select
+                value={house}
+                onChange={(e) => setHouse(e.target.value as BettingHouse | '')}
+                required
+                className="w-full rounded-lg border border-slate-700 bg-slate-900 px-3 py-2 text-sm text-slate-100 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 outline-none"
+              >
+                <option value="">— selecione a casa —</option>
+                {BETTING_HOUSES.map((h) => (
+                  <option key={h} value={h}>
+                    {h}
+                  </option>
+                ))}
+              </select>
+              <p className="text-xs text-slate-500 mt-1">
+                Pra cruzar com relatório de afiliado depois e ver qual casa converte melhor.
+              </p>
+            </div>
+
             {/* Apelido da tip — obrigatório, aparece no histórico */}
             <div className="mb-3">
               <label className="block text-xs font-medium text-slate-400 mb-1 uppercase tracking-wide">
@@ -585,7 +619,7 @@ export default function NovaMensagemPage() {
             </button>
             <button
               type="submit"
-              disabled={submitting || !instanceId || !content.trim() || !nickname.trim()}
+              disabled={submitting || !instanceId || !content.trim() || !nickname.trim() || !house}
               className="w-full sm:w-auto px-4 min-h-[44px] sm:min-h-0 sm:py-2 rounded-lg bg-emerald-500 md:hover:bg-emerald-600 active:bg-emerald-700 disabled:bg-slate-700 disabled:text-slate-500 text-white text-sm font-medium"
             >
               {submitting

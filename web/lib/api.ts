@@ -155,6 +155,16 @@ export const instances = {
 // ─── Messages ───
 export type DestinationType = 'ANNOUNCEMENT_CHANNEL' | 'GROUP' | 'MULTI_GROUP';
 
+// Casas de aposta canônicas — espelha lib/houses.ts (mantém os 2 sincronizados
+// se adicionar/remover uma casa lá).
+export type BettingHouse =
+  | 'EsportivaBet'
+  | 'Stake'
+  | 'BetMGM'
+  | 'Novibet'
+  | 'Lottu'
+  | 'Superbet';
+
 export type CreateMessageInput = {
   instanceId: string;
   destinationType: DestinationType;
@@ -165,6 +175,8 @@ export type CreateMessageInput = {
   imageUrl?: string;
   // Apelido é obrigatório a partir da v2 — sem ele histórico fica ilegível
   nickname: string;
+  // Casa de aposta — obrigatória pra cruzar com relatório de afiliado
+  house: BettingHouse;
   mentionAll?: boolean;
   scheduledFor?: string; // ISO datetime
   createdById: string;
@@ -179,6 +191,7 @@ export type Message = {
   imageUrl: string | null;
   nickname: string | null;
   result: TipResult;
+  house: BettingHouse | null;
   mentionAll: boolean;
   scheduledFor: string;
   status: string;
@@ -222,6 +235,7 @@ export const messages = {
       mentionAll?: boolean;
       nickname?: string | null;
       result?: TipResult;
+      house?: BettingHouse | null;
     },
   ) =>
     request<Message>(`/messages/${id}`, {

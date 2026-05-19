@@ -124,6 +124,11 @@ model Message {
   // GREEN | RED | VOID | null (não definido)
   result String?
 
+  // Casa de aposta usada no bilhete (EsportivaBet, Stake, BetMGM, Novibet,
+  // Lottu, Superbet). Lista canônica em lib/houses.ts.
+  // Opcional pra não quebrar mensagens legadas, mas o form força preencher.
+  house String?
+
   // Se true, na hora do envio busca todos os participants do canal/grupo
   // e adiciona @phone (com caractere invisível) — gera notificação push
   // pra cada membro (434+ pessoas no canal Mateus). Use com cuidado.

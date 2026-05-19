@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { prisma } from '@/lib/prisma';
+import { BETTING_HOUSES } from '@/lib/houses';
 import { errorResponse, fromZodError, notFound } from '../../_helpers/errors';
 
 export const dynamic = 'force-dynamic';
@@ -32,10 +33,11 @@ export async function GET(_req: Request, ctx: { params: { id: string } }) {
 //   Categoria B — CANCELAMENTO (status: CANCELLED)
 //     · Só pode em SCHEDULED. Em SENT/FAILED/CANCELLED não faz sentido.
 //
-//   Categoria C — METADADOS (nickname, result)
+//   Categoria C — METADADOS (nickname, result, house)
 //     · SEMPRE permitido, em QUALQUER status. Resultado é por definição
 //       pós-jogo, marcar Green/Red/Void numa tip SENT é o caso de uso
-//       principal. Apelido também pode ser ajustado depois.
+//       principal. Apelido e casa também podem ser ajustados depois
+//       (ex: descobrir que tip antiga foi de Stake, não Novibet).
 
 const PatchSchema = z.object({
   status: z.literal('CANCELLED').optional(),
@@ -46,6 +48,8 @@ const PatchSchema = z.object({
   mentionAll: z.boolean().optional(),
   nickname: z.string().max(80).nullable().optional(),
   result: z.enum(['GREEN', 'RED', 'VOID']).nullable().optional(),
+  // Casa de aposta — null pra remover, undefined pra manter.
+  house: z.enum(BETTING_HOUSES).nullable().optional(),
 });
 
 export async function PATCH(req: NextRequest, ctx: { params: { id: string } }) {
@@ -91,7 +95,7 @@ export async function PATCH(req: NextRequest, ctx: { params: { id: string } }) {
     );
   }
 
-  // Categoria C (nickname, result) — sem restrição de status
+  // Categoria C (nickname, result, house) — sem restrição de status
 
   const updated = await prisma.message.update({
     where: { id: ctx.params.id },
@@ -108,6 +112,7 @@ export async function PATCH(req: NextRequest, ctx: { params: { id: string } }) {
           ? undefined
           : parsed.data.nickname?.trim() || null,
       result: parsed.data.result === undefined ? undefined : parsed.data.result,
+      house: parsed.data.house === undefined ? undefined : parsed.data.house,
     },
     include: {
       targets: { include: { group: true } },
